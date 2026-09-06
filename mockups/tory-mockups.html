@@ -1,0 +1,878 @@
+<title>Tory Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap">
+<style>
+:root{
+  --paper:#ECEDE9; --surface:#FFFFFF; --surface-2:#F5F6F2; --ink:#15181A; --muted:#616763;
+  --line:#D5D8D1; --line-soft:#E3E5DF;
+  --accent:#1E5E4A; --accent-soft:#DAE6DF; --accent-ink:#123A2D;
+  --good:#2C7A57; --warn:#9E6A16; --crit:#A63A2B;
+  --shadow:0 1px 2px rgba(20,30,25,.06), 0 12px 32px -18px rgba(20,30,25,.35);
+  --f-disp:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",monospace;
+  --f-serif:"Newsreader",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1211; --surface:#171B1A; --surface-2:#1D2221; --ink:#E7EBE7; --muted:#98A29C;
+    --line:#282E2C; --line-soft:#212725;
+    --accent:#6FCFA6; --accent-soft:#1B2E28; --accent-ink:#A8E6C9;
+    --good:#5BB68A; --warn:#D6A24D; --crit:#DB7A68;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1211; --surface:#171B1A; --surface-2:#1D2221; --ink:#E7EBE7; --muted:#98A29C;
+  --line:#282E2C; --line-soft:#212725;
+  --accent:#6FCFA6; --accent-soft:#1B2E28; --accent-ink:#A8E6C9;
+  --good:#5BB68A; --warn:#D6A24D; --crit:#DB7A68;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 16px 40px -20px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--f-disp);text-wrap:balance;margin:0}
+h2{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.12}
+h3{font-size:18px;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.lede{font-size:17px;color:var(--muted);max-width:62ch}
+.sec{padding:52px 0;border-top:1px solid var(--line)}
+.sec-head{display:flex;flex-direction:column;gap:8px;margin-bottom:26px;max-width:70ch}
+
+/* ---------- masthead ---------- */
+.mast{padding:56px 0 44px}
+.mast-top{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.logo{width:34px;height:34px;border-radius:10px;background:var(--accent);color:var(--paper);display:grid;place-items:center;font-family:var(--f-disp);font-weight:700;font-size:18px}
+.mast h1{font-size:clamp(38px,7vw,66px);font-weight:700;letter-spacing:-.035em;line-height:1.02;margin-bottom:16px}
+.mast .lede{font-size:19px;max-width:56ch}
+.factstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:34px}
+.fact{background:var(--surface);padding:13px 15px}
+.fact dt{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.fact dd{margin:3px 0 0;font-size:14px;font-weight:600}
+
+/* ---------- generic blocks ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{margin-bottom:6px}
+.card p{font-size:14px;color:var(--muted)}
+.modcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 17px;display:flex;flex-direction:column;gap:9px}
+.modcard .top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.modcard h3{font-size:16px}
+.tag{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent-ink);font-weight:600;white-space:nowrap}
+.modcard p{font-size:13.5px;color:var(--muted);line-height:1.5}
+.src{font-family:var(--f-mono);font-size:11px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px;margin-top:auto}
+ul.plain{margin:0;padding-left:18px;font-size:14px;color:var(--muted)}
+ul.plain li{margin:4px 0}
+ul.plain li strong{color:var(--ink);font-weight:600}
+
+/* ---------- table ---------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dot{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-weight:600;font-size:12.5px}
+.dot::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:0 0 8px}
+.dot.ok{color:var(--good)} .dot.mid{color:var(--warn)} .dot.no{color:var(--crit)}
+
+/* ---------- direction blocks ---------- */
+.dirsec{border-top:1px solid var(--line);padding:46px 0}
+.dirhead{display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;justify-content:space-between;margin-bottom:8px}
+.dirhead .id{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.1em;color:var(--accent);border:1px solid var(--accent);border-radius:6px;padding:2px 8px}
+.dirtitle{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pick{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;padding:8px 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+.pick:hover{border-color:var(--accent)}
+.pick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pick[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.dirbody{display:grid;grid-template-columns:1.15fr .85fr;gap:22px;margin:18px 0 26px;align-items:start}
+@media (max-width:760px){.dirbody{grid-template-columns:1fr}}
+.dirbody .why{font-size:15px;color:var(--muted);max-width:58ch}
+.specs{display:flex;flex-direction:column;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px}
+.spec-row{display:grid;grid-template-columns:74px 1fr;gap:10px;align-items:center;font-size:13px}
+.spec-row .k{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sw{display:flex;gap:5px}
+.sw i{width:22px;height:22px;border-radius:5px;display:block;border:1px solid rgba(0,0,0,.12)}
+.meter{display:flex;gap:3px;align-items:center}
+.meter i{width:13px;height:6px;border-radius:2px;background:var(--line);display:block}
+.meter i.on{background:var(--accent)}
+.prosconstr{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+@media (max-width:520px){.prosconstr{grid-template-columns:1fr}}
+.pc h4{margin:0 0 5px;font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.pc ul{margin:0;padding-left:16px;font-size:13.5px;color:var(--muted)}
+.pc li{margin:3px 0}
+
+/* ---------- phone strip ---------- */
+.strip{display:flex;gap:24px;overflow-x:auto;padding:6px 0 20px;padding-inline:max(22px,calc((100% - 1080px) / 2));scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{height:8px}
+.strip::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+.stripwrap{margin:0 -22px}
+.pblock{scroll-snap-align:center;display:flex;flex-direction:column;gap:9px;flex:0 0 auto}
+.pcap{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;color:var(--muted);padding-left:4px}
+.pcap b{color:var(--ink);font-weight:600}
+.phone{width:320px;flex:0 0 320px;padding:8px;border-radius:40px;background:#1a1c1e;box-shadow:0 2px 3px rgba(0,0,0,.3),0 26px 50px -26px rgba(0,0,0,.6);position:relative}
+.screen{height:646px;border-radius:33px;overflow:hidden;display:flex;flex-direction:column;position:relative;background:var(--scr);color:var(--txt);font-family:var(--sf);font-size:13px;line-height:1.35}
+.cam{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;background:#0a0b0c;z-index:5}
+.sb{height:28px;flex:0 0 28px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:11px;font-weight:600;letter-spacing:.01em;color:var(--txt)}
+.sb .r{display:flex;align-items:center;gap:4px}
+.sb .bars{display:flex;align-items:flex-end;gap:1.5px;height:9px}
+.sb .bars i{width:2.5px;background:currentColor;border-radius:1px;display:block}
+.sb .bars i:nth-child(1){height:3px}.sb .bars i:nth-child(2){height:5px}.sb .bars i:nth-child(3){height:7px}.sb .bars i:nth-child(4){height:9px}
+.sb .bat{width:17px;height:9px;border:1.3px solid currentColor;border-radius:2.5px;position:relative;opacity:.85}
+.sb .bat::after{content:"";position:absolute;inset:1.5px;right:5px;background:currentColor;border-radius:1px}
+.body{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.tabs{flex:0 0 54px;display:flex;align-items:center;border-top:1px solid var(--tabline);background:var(--tabbg)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--dim);font-size:9px;letter-spacing:.01em}
+.tab svg{width:19px;height:19px}
+.tab.on{color:var(--acc);font-weight:600}
+</style>
+<style>
+/* ===== RICHTUNG A — Ruhiger Morgen ===== */
+.dir-a{--scr:#F4F2ED;--txt:#1B1E1C;--dim:#7B807A;--acc:#0F5C63;--card:#FFFFFF;--tabbg:#FFFFFF;--tabline:#E6E3DC;--sf:var(--f-body)}
+.a-head{padding:11px 16px 6px}
+.a-date{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.a-h1{font-size:23px;font-weight:600;letter-spacing:-.025em;margin-top:5px;line-height:1.15}
+.a-sec{padding:0 15px;margin-top:12px}
+.a-label{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;padding-left:3px}
+.a-card{background:var(--card);border-radius:22px;padding:2px 12px;box-shadow:0 1px 2px rgba(30,35,30,.05)}
+.a-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #F1EFE9}
+.a-row:last-child{border-bottom:0}
+.a-ic{width:34px;height:34px;border-radius:13px;display:grid;place-items:center;flex:0 0 34px}
+.a-ic svg{width:17px;height:17px}
+.a-t{font-size:12.4px;font-weight:600;line-height:1.28}
+.a-s{font-size:11.2px;color:var(--dim);margin-top:1px;line-height:1.3}
+.a-meta{margin-left:auto;font-family:var(--f-mono);font-size:9.5px;color:var(--dim);white-space:nowrap;letter-spacing:.02em}
+.a-meta.hot{color:#BF5340;font-weight:600}
+.a-time{font-family:var(--f-mono);font-size:12px;font-weight:600;width:40px;flex:0 0 40px;letter-spacing:-.02em}
+.a-chk{width:19px;height:19px;border-radius:50%;border:1.6px solid #CBD0C9;flex:0 0 19px;position:relative}
+.a-chk.done{background:var(--acc);border-color:var(--acc)}
+.a-chk.done::after{content:"";position:absolute;left:5.6px;top:2.8px;width:5px;height:9px;border:solid #fff;border-width:0 1.8px 1.8px 0;transform:rotate(45deg)}
+.a-done{color:var(--dim);text-decoration:line-through}
+.a-top{display:flex;align-items:center;gap:11px;padding:4px 16px 8px}
+.a-top .ttl{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.a-top svg{width:20px;height:20px;color:var(--txt)}
+.a-seg{display:flex;background:#E8E5DE;border-radius:12px;padding:3px;margin:0 15px 11px}
+.a-seg span{flex:1;text-align:center;font-size:11.5px;padding:5px 0;border-radius:9px;color:var(--dim);font-weight:500}
+.a-seg span.on{background:#fff;color:var(--txt);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+.a-av{width:33px;height:33px;border-radius:50%;display:grid;place-items:center;font-size:11.5px;font-weight:600;flex:0 0 33px;letter-spacing:.02em}
+.a-pill{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:5px;background:#FCE9E3;color:#BF5340}
+.a-bundle{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #F1EFE9}
+.a-count{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--dim)}
+
+/* ===== RICHTUNG B — Cockpit ===== */
+.dir-b{--scr:#0C0F11;--txt:#E4EAEA;--dim:#79858B;--acc:#56B7C8;--card:#141819;--tabbg:#0C0F11;--tabline:#1E2528;--sf:var(--f-body)}
+.b-top{display:flex;align-items:center;justify-content:space-between;padding:9px 16px 9px}
+.b-brand{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.24em}
+.b-sync{font-family:var(--f-mono);font-size:9.5px;color:var(--dim);letter-spacing:.05em}
+.b-strip{display:flex;border-top:1px solid var(--tabline);border-bottom:1px solid var(--tabline)}
+.b-kpi{flex:1;padding:8px 4px 9px 9px;border-right:1px solid var(--tabline)}
+.b-kpi:last-child{border-right:0}
+.b-kpi .k{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:var(--dim)}
+.b-kpi .v{font-family:var(--f-mono);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:2px;letter-spacing:-.02em}
+.b-sec{padding:10px 16px 4px;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.17em;color:var(--dim);display:flex;justify-content:space-between;align-items:center}
+.b-row{display:flex;align-items:center;gap:10px;padding:7px 16px 7px 13px;border-left:3px solid #212A2D}
+.b-row.crit{border-left-color:#D45B4A}
+.b-row.warn{border-left-color:#E0A44A}
+.b-row.ok{border-left-color:#4FA97B}
+.b-t{font-size:12.4px;font-weight:500;line-height:1.3}
+.b-s{font-size:10.4px;color:var(--dim);margin-top:2px;line-height:1.3}
+.b-n{margin-left:auto;font-family:var(--f-mono);font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right;letter-spacing:-.01em}
+.b-n b{display:block;color:var(--txt);font-size:12.5px;font-weight:600}
+.b-hr{height:1px;background:var(--tabline);margin:5px 16px 0}
+.b-big{font-family:var(--f-mono);font-size:27px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.b-chips{display:flex;gap:6px;padding:0 16px 8px}
+.b-chip{font-family:var(--f-mono);font-size:9.5px;padding:4px 9px;border-radius:6px;border:1px solid var(--tabline);color:var(--dim);letter-spacing:.06em}
+.b-chip.on{border-color:var(--acc);color:var(--acc)}
+.b-bar{height:7px;border-radius:4px;background:#1D2427;position:relative;margin-top:7px}
+.b-bar i{display:block;height:100%;background:var(--acc);border-radius:4px}
+.b-bar .mk{position:absolute;top:-4px;bottom:-4px;width:1.5px;background:#79858B}
+.b-mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.b-pos{color:#4FA97B}
+.b-neg{color:#E4EAEA}
+.b-box{margin:0 16px;padding:12px 13px;background:var(--card);border:1px solid var(--tabline);border-radius:11px}
+.b-cat{width:7px;height:7px;border-radius:2px;flex:0 0 7px}
+
+/* ===== RICHTUNG C — Bento ===== */
+.dir-c{--scr:#EBEDF0;--txt:#171A1F;--dim:#6E747E;--acc:#2F4A9B;--card:#FFFFFF;--tabbg:#FFFFFF;--tabline:#DFE2E8;--sf:var(--f-body)}
+.c-top{display:flex;align-items:center;justify-content:space-between;padding:11px 14px 7px}
+.c-date{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.c-date span{color:var(--dim);font-weight:400}
+.c-edit{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.08em;color:var(--dim);border:1px solid #D8DBE2;border-radius:7px;padding:4px 8px}
+.c-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:3px 12px 12px}
+.c-tile{background:var(--card);border-radius:19px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 2px rgba(20,25,45,.06);min-width:0}
+.c-tile.w2{grid-column:span 2}
+.c-lab{font-family:var(--f-mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;font-weight:600}
+.c-num{font-size:21px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1.1}
+.c-sub{font-size:10.8px;color:var(--dim);line-height:1.32}
+.c-serif{font-family:var(--f-serif);font-size:15.5px;line-height:1.22;font-weight:600;letter-spacing:-.005em}
+.c-news{display:flex;flex-direction:column;gap:7px;padding-top:2px}
+.c-news .it{border-top:1px solid #EDEFF3;padding-top:7px}
+.c-news .it:first-child{border-top:0;padding-top:0}
+.c-src{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:3px}
+.c-dots{display:flex;gap:4px;margin-top:3px}
+.c-dots i{width:6px;height:6px;border-radius:50%;background:#DEE1E7;display:block}
+.c-dots i.on{background:#B85C22}
+.c-mini{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.c-mini div{display:flex;align-items:center;gap:6px;font-size:10.6px;color:var(--txt)}
+.c-mini span{width:12px;height:12px;border-radius:4px;border:1.4px solid #CBD0D8;flex:0 0 12px}
+.c-bar{height:5px;border-radius:3px;background:#E7E9EE;margin-top:5px;overflow:hidden}
+.c-bar i{display:block;height:100%;border-radius:3px}
+.c-ship{background:var(--card);border-radius:18px;padding:12px 13px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(20,25,45,.06)}
+.c-carrier{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;font-weight:600;padding:3px 7px;border-radius:5px}
+.c-track{display:flex;align-items:center;padding:2px 2px 0}
+.c-node{width:9px;height:9px;border-radius:50%;background:#DDE0E6;flex:0 0 9px}
+.c-node.on{background:#B85C22}
+.c-seg{height:2px;flex:1;background:#DDE0E6}
+.c-seg.on{background:#B85C22}
+.c-steps{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:8px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;margin-top:1px}
+.t-paket{background:#FBEDE3;color:#B85C22}.d-paket{color:#B85C22}
+.t-mail{background:#E9ECFA;color:#3A4CA0}.d-mail{color:#3A4CA0}
+.t-geld{background:#E2F0E9;color:#1B6B4C}.d-geld{color:#1B6B4C}
+.t-todo{background:#EFE9F8;color:#63479E}.d-todo{color:#63479E}
+.t-wetter{background:#E3EEF5;color:#2A6A88}.d-wetter{color:#2A6A88}
+.t-news{background:#EDEEF0;color:#3C4149}.d-news{color:#3C4149}
+</style>
+<svg style="display:none" aria-hidden="true">
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3.6 10.4 12 4l8.4 6.4V20a1 1 0 0 1-1 1h-4.8v-6H9.4v6H4.6a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="i-news" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h11v16H5.4A1.4 1.4 0 0 1 4 19.1z"/><path d="M15 9h3.6A1.4 1.4 0 0 1 20 10.4v8.2a1.9 1.9 0 0 1-3.8 0"/><path d="M7 8.5h5M7 12h5M7 15.5h3"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.2h17v11.6h-17z"/><path d="m3.5 7.1 8.5 5.9 8.5-5.9"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.8h14.6a2.4 2.4 0 0 1 2.4 2.4v6.9a2.4 2.4 0 0 1-2.4 2.4H5.9a2.4 2.4 0 0 1-2.4-2.4z"/><path d="M3.5 7.8V7a2.4 2.4 0 0 1 2.4-2.4h9.3v3.2"/><circle cx="16.6" cy="13.6" r="1.1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-3.4-6.8"/><path d="m8 11.8 3 3 6.6-6.9"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3.2 8.3 3.9v9.8L12 20.8 3.7 16.9V7.1z"/><path d="M3.7 7.1 12 11l8.3-3.9M12 11v9.8"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16v14H4z"/><path d="M8 3.5v5M16 3.5v5M4 11h16"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9.5a6 6 0 1 0-12 0c0 4.5-2 5.8-2 5.8h16s-2-1.3-2-5.8"/><path d="M10.3 19.3a2 2 0 0 0 3.4 0"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V4.5M4 19.5h16"/><path d="m7 15 3.6-4.6 3 2.6L19 7"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 17.8a4.2 4.2 0 1 1 .9-8.3A5.2 5.2 0 0 1 18.6 11a3.4 3.4 0 0 1-.5 6.8z"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 5-7 7 7 7"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12.5h4L9.7 7l3.6 10 2.2-4.5h5"/></symbol>
+</svg>
+
+<div class="wrap">
+<header class="mast">
+  <div class="mast-top"><span class="logo">T</span><span class="eyebrow">Konzept &amp; Designvorschlag · 6. September 2026</span></div>
+  <h1>Tory</h1>
+  <p class="lede">Ein persönliches Dashboard für dein Galaxy: Post, Pakete, Konten, Aufgaben und Nachrichten auf einem Screen — damit du morgens nicht mehr acht Apps durchgehst, um zu wissen, was heute ansteht.</p>
+  <dl class="factstrip">
+    <div class="fact"><dt>Plattform</dt><dd>Android 14+ / One UI 6</dd></div>
+    <div class="fact"><dt>Stack</dt><dd>Kotlin · Jetpack Compose</dd></div>
+    <div class="fact"><dt>Daten</dt><dd>on-device, kein Fremd-Backend</dd></div>
+    <div class="fact"><dt>Module</dt><dd>8 Domänen, 1 Startscreen</dd></div>
+    <div class="fact"><dt>MVP</dt><dd>4 Module, ca. 6 Wochen</dd></div>
+  </dl>
+</header>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Die Idee</span>
+    <h2>Nicht noch ein Feed — eine Antwort auf „Was ist heute wichtig?“</h2>
+    <p class="lede">Aggregatoren scheitern, wenn sie alles gleich laut anzeigen. Tory dreht das um: Jede Quelle liefert nur ihre <em>Signale</em> — Dinge mit Termin, Betrag oder Handlungsbedarf. Alles andere liegt eine Ebene tiefer.</p>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>Signal vor Detail</h3><p>Jedes Modul beantwortet oben eine Frage in einer Zeile: „Paket kommt 14–16 Uhr“, „Miete geht in 2 Tagen ab“. Die Liste dahinter ist optional.</p></div>
+    <div class="card"><h3>Ein Ereignismodell</h3><p>Mail, Paket, Buchung, Termin, Aufgabe werden intern zum selben Typ: Titel, Zeitpunkt, Dringlichkeit, Quelle, Aktion. Der Startscreen sortiert nur noch.</p></div>
+    <div class="card"><h3>Offline zuerst</h3><p>Alles landet in einer lokalen Datenbank. Die App startet in Millisekunden mit dem letzten Stand und synchronisiert im Hintergrund — nicht beim Öffnen.</p></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Module</span>
+    <h2>Acht Domänen, jede mit eigener Karte und eigener Detailseite</h2>
+  </div>
+  <div class="grid3">
+    <div class="modcard"><div class="top"><h3>Heute</h3><span class="tag">Start</span></div><p>Der einzige Screen, der alles mischt: Signalzeile, Termine, offene Aufgaben, danach die Domänenkarten in deiner Reihenfolge.</p><div class="src">speist sich aus allen Modulen</div></div>
+    <div class="modcard"><div class="top"><h3>Mail</h3><span class="tag">MVP</span></div><p>Fokus-Postfach statt Vollclient: nur ungelesen &amp; wichtig, Newsletter und Rechnungen automatisch gebündelt. Antworten öffnet Gmail.</p><div class="src">Gmail API (read-only) · IMAP</div></div>
+    <div class="modcard"><div class="top"><h3>Pakete</h3><span class="tag">v1</span></div><p>Sendungen aus Versandbestätigungen im Postfach erkannt, danach über Tracking-API aktualisiert. Zustellfenster landet als Signal im Heute-Screen.</p><div class="src">Mail-Parser · 17TRACK / DHL API</div></div>
+    <div class="modcard"><div class="top"><h3>Geld</h3><span class="tag">v1</span></div><p>Kontostände, kommende Abbuchungen, Monatsbudget und Umsätze nach Kategorie. Read-only — keine Überweisungen aus der App.</p><div class="src">PSD2-Aggregator · FinTS</div></div>
+    <div class="modcard"><div class="top"><h3>Aufgaben</h3><span class="tag">MVP</span></div><p>Bewusst simpel: Titel, optionales Datum, Liste. Aus einer Mail oder einem Paket wird per Tipp eine Aufgabe.</p><div class="src">lokal (Room) · optional Google Tasks</div></div>
+    <div class="modcard"><div class="top"><h3>News</h3><span class="tag">MVP</span></div><p>Deine Quellen als RSS, entdoppelt und auf zehn Schlagzeilen am Morgen begrenzt. Kein endloses Scrollen, kein Algorithmus.</p><div class="src">RSS/Atom: tagesschau, heise, …</div></div>
+    <div class="modcard"><div class="top"><h3>Kalender</h3><span class="tag">MVP</span></div><p>Nur der heutige und morgige Tag, mit Reisezeit zum nächsten Termin. Vollansicht bleibt Google Kalender.</p><div class="src">Calendar Provider (on-device)</div></div>
+    <div class="modcard"><div class="top"><h3>Puls</h3><span class="tag">v2</span></div><p>Schritte, Schlaf, Trainings — als eine Zeile Kontext, nicht als eigene Fitness-App. Speist die Morgen-Zusammenfassung.</p><div class="src">Health Connect · Samsung Health</div></div>
+    <div class="modcard"><div class="top"><h3>Wetter &amp; Weg</h3><span class="tag">v2</span></div><p>Regenwarnung für die nächsten Stunden und Störungen auf deiner üblichen Strecke — nur wenn es etwas zu melden gibt.</p><div class="src">Bright Sky (DWD) · DB/HAFAS</div></div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Aufbau</span>
+    <h2>Vier Ebenen im Startscreen, fünf Reiter darunter</h2>
+    <p class="lede">Die Struktur bleibt in allen drei Designrichtungen gleich — sie unterscheiden sich darin, wie dicht und wie laut sie diese Struktur zeigen.</p>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Der Startscreen von oben nach unten</h3>
+      <ul class="plain">
+        <li><strong>1 · Gruß &amp; Datum</strong> — plus Sync-Stand, damit klar ist, wie alt die Zahlen sind.</li>
+        <li><strong>2 · Jetzt wichtig</strong> — maximal drei Signale, quellenübergreifend nach Dringlichkeit sortiert.</li>
+        <li><strong>3 · Heute</strong> — Termine und fällige Aufgaben des Tages.</li>
+        <li><strong>4 · Domänen</strong> — Mail, Pakete, Geld, News als Karten in frei wählbarer Reihenfolge.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Navigation &amp; Einstiege</h3>
+      <ul class="plain">
+        <li><strong>Reiter</strong> — Heute · News · Mail · Geld · Mehr (Pakete, Aufgaben, Puls, Einstellungen).</li>
+        <li><strong>Widget</strong> — dieselbe Signalzeile als Glance-Widget auf dem Homescreen, 4×1 und 4×2.</li>
+        <li><strong>Gedrückt halten</strong> — jede Karte bietet Aktionen: erledigt, später, in Aufgabe verwandeln, Quelle öffnen.</li>
+        <li><strong>Morgenbrief</strong> — eine Benachrichtigung um 7:30 mit genau den Signalen des Tages.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</div>
+<style>
+.a-txt,.b-txt{min-width:0;flex:1}
+.i16{width:16px;height:16px;display:block}
+.i18{width:18px;height:18px;display:block}
+.i20{width:20px;height:20px;display:block}
+.screen svg{display:block}
+.dirs-intro{padding:52px 0 8px;border-top:1px solid var(--line)}
+.note{font-size:12.5px;color:var(--muted);font-family:var(--f-mono);margin-top:10px}
+</style>
+
+<div class="wrap dirs-intro">
+  <div class="sec-head">
+    <span class="eyebrow">Drei Richtungen</span>
+    <h2>Gleicher Inhalt, drei Haltungen — such dir eine aus</h2>
+    <p class="lede">Alle drei Entwürfe zeigen denselben Sonntagmorgen mit denselben Daten. Sie unterscheiden sich in Dichte, Farbklima und darin, wie stark du das Dashboard selbst umbauen kannst. Wisch die Screens seitlich, um den zweiten Screen jeder Richtung zu sehen.</p>
+    <p class="note">Alle Zahlen und Namen in den Mockups sind Beispieldaten.</p>
+  </div>
+</div>
+
+<!-- ============ RICHTUNG A ============ -->
+<section class="dirsec">
+ <div class="wrap">
+  <div class="dirhead">
+    <div class="dirtitle"><span class="id">A</span><h2>Ruhiger Morgen</h2></div>
+    <button class="pick" data-dir="A" aria-pressed="false">Diese Richtung merken</button>
+  </div>
+  <div class="dirbody">
+    <p class="why">Hell, luftig, nah an One UI. Große weiche Karten, viel Weißraum, eine Sache pro Zeile. Der Screen wirkt eher wie eine ruhige Tageskarte als wie ein Dashboard — man liest ihn in fünf Sekunden fertig und legt das Telefon weg. Farbe kommt fast nur über die runden Icon-Kacheln herein, die jede Domäne wiedererkennbar machen. Der Preis: pro Bildschirm passen nur sechs bis acht Informationen, alles Weitere kostet einen Wisch.</p>
+    <div class="specs">
+      <div class="spec-row"><span class="k">Palette</span><span class="sw"><i style="background:#F4F2ED"></i><i style="background:#FFFFFF"></i><i style="background:#0F5C63"></i><i style="background:#BF5340"></i><i style="background:#1B1E1C"></i></span></div>
+      <div class="spec-row"><span class="k">Typo</span><span>Instrument Sans · 23/13/11 px, keine Versalien außer Labels</span></div>
+      <div class="spec-row"><span class="k">Dichte</span><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Nachts</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Widget</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Aufwand</span><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+    </div>
+  </div>
+  <div class="prosconstr">
+    <div class="pc"><h4>Spricht dafür</h4><ul><li>Fühlt sich wie ein Systemscreen an, nicht wie eine Fremd-App</li><li>Am schnellsten gebaut: Material-3-Komponenten fast unverändert</li><li>Verzeiht unfertige Module — leere Karten sehen nicht kaputt aus</li></ul></div>
+    <div class="pc"><h4>Spricht dagegen</h4><ul><li>Wenig Information pro Blick, viel Scrollen bei acht Modulen</li><li>Helle Fläche ist morgens um 6 Uhr im Dunkeln unangenehm</li><li>Kann austauschbar wirken — wenig eigener Charakter</li></ul></div>
+  </div>
+ </div>
+ <div class="stripwrap"><div class="strip">
+
+  <div class="pblock">
+   <div class="phone dir-a"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:12</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="a-head">
+        <div class="a-date">Sonntag · 6. September</div>
+        <div class="a-h1">Guten Morgen, Jakob</div>
+      </div>
+      <div class="a-sec">
+        <div class="a-label">Jetzt wichtig</div>
+        <div class="a-card">
+          <div class="a-row">
+            <span class="a-ic" style="background:#FBEDE3;color:#B85C22"><svg class="i18"><use href="#i-box"/></svg></span>
+            <div class="a-txt"><div class="a-t">DHL kommt 14–16 Uhr</div><div class="a-s">Kopfhörer · persönlich</div></div>
+            <span class="a-meta">in 5 h</span>
+          </div>
+          <div class="a-row">
+            <span class="a-ic" style="background:#E4EFEF;color:#0F5C63"><svg class="i18"><use href="#i-mail"/></svg></span>
+            <div class="a-txt"><div class="a-t">Siemens: Einladung</div><div class="a-s">Antwort bis Montag</div></div>
+            <span class="a-meta hot">wichtig</span>
+          </div>
+          <div class="a-row">
+            <span class="a-ic" style="background:#E7EFE7;color:#2C6B48"><svg class="i18"><use href="#i-wallet"/></svg></span>
+            <div class="a-txt"><div class="a-t">Miete 1.180,00 €</div><div class="a-s">Dauerauftrag · 8.9.</div></div>
+            <span class="a-meta">in 2 T</span>
+          </div>
+        </div>
+      </div>
+      <div class="a-sec">
+        <div class="a-label">Heute</div>
+        <div class="a-card">
+          <div class="a-row"><span class="a-time">10:00</span><div class="a-txt"><div class="a-t">Brunch mit Lena</div><div class="a-s">Café Klatsch</div></div></div>
+          <div class="a-row"><span class="a-time">18:30</span><div class="a-txt"><div class="a-t">Lauftreff</div><div class="a-s">Rheinaue</div></div></div>
+        </div>
+      </div>
+      <div class="a-sec">
+        <div class="a-label">Aufgaben · 3 offen</div>
+        <div class="a-card">
+          <div class="a-row"><span class="a-chk"></span><div class="a-txt"><div class="a-t">Steuerunterlagen sammeln</div></div><span class="a-pill">Frist</span></div>
+          <div class="a-row"><span class="a-chk"></span><div class="a-txt"><div class="a-t">Fahrradschloss kaufen</div></div></div>
+          <div class="a-row"><span class="a-chk done"></span><div class="a-txt"><div class="a-t a-done">Hausarzt anrufen</div></div></div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <span class="tab on"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab"><svg><use href="#i-more"/></svg>Mehr</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>A1</b> · Start</div>
+  </div>
+
+  <div class="pblock">
+   <div class="phone dir-a"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:13</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="a-top">
+        <svg class="i20"><use href="#i-back"/></svg>
+        <span class="ttl">Mail</span>
+        <span style="margin-left:auto"><svg class="i20"><use href="#i-search"/></svg></span>
+      </div>
+      <div class="a-seg"><span class="on">Fokus</span><span>Gebündelt</span><span>Alle</span></div>
+      <div class="a-sec" style="margin-top:0">
+        <div class="a-label">Braucht dich · 2</div>
+        <div class="a-card">
+          <div class="a-row">
+            <span class="a-av" style="background:#E4EFEF;color:#0F5C63">SI</span>
+            <div class="a-txt"><div class="a-t">Einladung zum Gespräch</div><div class="a-s">Wir würden Sie gern am Dienstag …</div></div>
+            <span class="a-meta">Fr</span>
+          </div>
+          <div class="a-row">
+            <span class="a-av" style="background:#F3EBE1;color:#8A6432">SW</span>
+            <div class="a-txt"><div class="a-t">Zählerstand ablesen</div><div class="a-s">Bitte melden bis zum 15.09. …</div></div>
+            <span class="a-meta">Do</span>
+          </div>
+        </div>
+      </div>
+      <div class="a-sec">
+        <div class="a-label">Gebündelt</div>
+        <div class="a-card">
+          <div class="a-bundle"><span class="a-ic" style="background:#EFEEE8;color:#6B7069"><svg class="i18"><use href="#i-news"/></svg></span><div class="a-txt"><div class="a-t">Newsletter</div><div class="a-s">heise, Zeit, Kleinanzeigen</div></div><span class="a-count">12</span></div>
+          <div class="a-bundle"><span class="a-ic" style="background:#E7EFE7;color:#2C6B48"><svg class="i18"><use href="#i-wallet"/></svg></span><div class="a-txt"><div class="a-t">Rechnungen &amp; Belege</div><div class="a-s">Telekom, Amazon, Stadtwerke</div></div><span class="a-count">3</span></div>
+          <div class="a-bundle" style="border-bottom:0"><span class="a-ic" style="background:#FBEDE3;color:#B85C22"><svg class="i18"><use href="#i-box"/></svg></span><div class="a-txt"><div class="a-t">Versand &amp; Lieferung</div><div class="a-s">wird zu Sendungen verarbeitet</div></div><span class="a-count">5</span></div>
+        </div>
+      </div>
+      <div class="a-sec">
+        <div class="a-label">Erledigt sich von selbst</div>
+        <div class="a-card">
+          <div class="a-row" style="border-bottom:0"><span class="a-av" style="background:#EFEEE8;color:#6B7069">RE</span><div class="a-txt"><div class="a-t">Deine Lieferung ist unterwegs</div><div class="a-s">archiviert sich in 3 Tagen</div></div><span class="a-meta">Sa</span></div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <span class="tab"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab on"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab"><svg><use href="#i-more"/></svg>Mehr</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>A2</b> · Mail · Fokus-Postfach</div>
+  </div>
+
+ </div></div>
+</section>
+<!-- ============ RICHTUNG B ============ -->
+<section class="dirsec">
+ <div class="wrap">
+  <div class="dirhead">
+    <div class="dirtitle"><span class="id">B</span><h2>Cockpit</h2></div>
+    <button class="pick" data-dir="B" aria-pressed="false">Diese Richtung merken</button>
+  </div>
+  <div class="dirbody">
+    <p class="why">Dunkel, dicht, ohne Kartenrahmen. Statt Boxen trennen Haarlinien, statt Farbflächen markieren schmale Statusbalken links am Rand die Dringlichkeit. Zahlen laufen in Monospace mit gleicher Ziffernbreite, sodass Beträge untereinander stehen. Oben eine Kennzahlenleiste, die alle acht Domänen in einer Zeile zusammenfasst — der Screen beantwortet „wie steht alles?“, bevor du überhaupt scrollst. Die Sprache ist die eines Leitstands, was zu deinem Arbeitsalltag passt, aber bewusst nüchtern bleibt.</p>
+    <div class="specs">
+      <div class="spec-row"><span class="k">Palette</span><span class="sw"><i style="background:#0C0F11"></i><i style="background:#141819"></i><i style="background:#56B7C8"></i><i style="background:#E0A44A"></i><i style="background:#D45B4A"></i></span></div>
+      <div class="spec-row"><span class="k">Typo</span><span>Instrument Sans + IBM Plex Mono für alle Zahlen</span></div>
+      <div class="spec-row"><span class="k">Dichte</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      <div class="spec-row"><span class="k">Nachts</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      <div class="spec-row"><span class="k">Widget</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Aufwand</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+    </div>
+  </div>
+  <div class="prosconstr">
+    <div class="pc"><h4>Spricht dafür</h4><ul><li>Doppelt so viel Information pro Blick wie A</li><li>Dringlichkeit ist ohne Lesen erkennbar (Balkenfarbe)</li><li>Auf OLED sparsam, angenehm früh morgens und abends</li></ul></div>
+    <div class="pc"><h4>Spricht dagegen</h4><ul><li>Braucht saubere Daten — leere Bereiche fallen sofort auf</li><li>Wirkt nach Arbeit, weniger nach Privatleben</li><li>Heller Modus muss zusätzlich entworfen werden</li></ul></div>
+  </div>
+ </div>
+ <div class="stripwrap"><div class="strip">
+
+  <div class="pblock">
+   <div class="phone dir-b"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:12</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="b-top"><span class="b-brand">TORY</span><span class="b-sync">SO 06.09 · SYNC VOR 2 MIN</span></div>
+      <div class="b-strip">
+        <div class="b-kpi"><div class="k">MAIL</div><div class="v">4</div></div>
+        <div class="b-kpi"><div class="k">PAKETE</div><div class="v">3</div></div>
+        <div class="b-kpi"><div class="k">KONTO</div><div class="v">3,4k</div></div>
+        <div class="b-kpi"><div class="k">TODO</div><div class="v">3</div></div>
+        <div class="b-kpi"><div class="k">NEWS</div><div class="v">12</div></div>
+      </div>
+      <div class="b-sec"><span>SIGNALE</span><span>NACH DRINGLICHKEIT</span></div>
+      <div class="b-row crit">
+        <div class="b-txt"><div class="b-t">Siemens · Einladung Gespräch</div><div class="b-s">Antwort erbeten bis Mo 07.09</div></div>
+        <div class="b-n">FRIST<b>1 T</b></div>
+      </div>
+      <div class="b-row warn">
+        <div class="b-txt"><div class="b-t">DHL · Zustellung heute</div><div class="b-s">340434 2911 8842 · Kopfhörer</div></div>
+        <div class="b-n">14–16 UHR<b>in 5 h</b></div>
+      </div>
+      <div class="b-row ok">
+        <div class="b-txt"><div class="b-t">Dauerauftrag Miete</div><div class="b-s">Abbuchung Di 08.09 · gedeckt</div></div>
+        <div class="b-n">EUR<b>1.180,00</b></div>
+      </div>
+      <div class="b-hr"></div>
+      <div class="b-sec"><span>KONTEN</span><span>7 TAGE</span></div>
+      <div class="b-row">
+        <div class="b-txt"><div class="b-t">Girokonto · DKB</div><div class="b-s">verfügbar 3.428,60</div></div>
+        <svg width="52" height="20" viewBox="0 0 52 20" aria-hidden="true"><path d="M2 5 L10 8 L18 12 L26 13 L34 18 L42 15 L50 16" fill="none" stroke="#D45B4A" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <div class="b-n">7 T<b>−214,80</b></div>
+      </div>
+      <div class="b-row">
+        <div class="b-txt"><div class="b-t">Tagesgeld · ING</div><div class="b-s">Zins 2,10 %</div></div>
+        <svg width="52" height="20" viewBox="0 0 52 20" aria-hidden="true"><path d="M2 15 L10 14 L18 14 L26 12 L34 11 L42 8 L50 6" fill="none" stroke="#4FA97B" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <div class="b-n">EUR<b>12.050,00</b></div>
+      </div>
+      <div class="b-hr"></div>
+      <div class="b-sec"><span>HEUTE</span><span>2 TERMINE</span></div>
+      <div class="b-row"><div class="b-txt"><div class="b-t">Brunch mit Lena</div><div class="b-s">Café Klatsch · 12 min Fahrt</div></div><div class="b-n">SO<b>10:00</b></div></div>
+      <div class="b-row"><div class="b-txt"><div class="b-t">Lauftreff</div><div class="b-s">Rheinaue Haupteingang</div></div><div class="b-n">SO<b>18:30</b></div></div>
+      <div class="b-hr"></div>
+      <div class="b-sec"><span>AUFGABEN</span><span>3 OFFEN</span></div>
+      <div class="b-row"><div class="b-txt"><div class="b-t">Steuerunterlagen sammeln</div></div><div class="b-n"><b>FR</b></div></div>
+      <div class="b-row"><div class="b-txt"><div class="b-t">Fahrradschloss kaufen</div></div><div class="b-n"><b>—</b></div></div>
+    </div>
+    <nav class="tabs">
+      <span class="tab on"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab"><svg><use href="#i-more"/></svg>Mehr</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>B1</b> · Start</div>
+  </div>
+
+  <div class="pblock">
+   <div class="phone dir-b"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:14</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="b-top"><span style="display:flex;align-items:center;gap:9px"><svg class="i18"><use href="#i-back"/></svg><span class="b-brand">GELD</span></span><span class="b-sync">2 KONTEN</span></div>
+      <div style="padding:6px 16px 10px">
+        <div class="b-sync">GIROKONTO · DKB · VERFÜGBAR</div>
+        <div class="b-big" style="margin-top:4px">3.428,60 €</div>
+        <div style="font-size:11px;color:#D45B4A;font-family:var(--f-mono);margin-top:3px">−214,80 € in 7 Tagen</div>
+      </div>
+      <div class="b-chips"><span class="b-chip on">7 T</span><span class="b-chip">30 T</span><span class="b-chip">12 M</span></div>
+      <div style="padding:0 16px">
+        <svg viewBox="0 0 288 72" width="100%" height="72" role="img" aria-label="Kontostand der letzten sieben Tage, von 3.643 € auf 3.428,60 € gefallen">
+          <line x1="8" y1="18" x2="280" y2="18" stroke="#232B2E" stroke-width="1" stroke-dasharray="3 4"/>
+          <line x1="8" y1="58" x2="280" y2="58" stroke="#232B2E" stroke-width="1" stroke-dasharray="3 4"/>
+          <path d="M8 18 L53 26.4 L98 38.7 L143 40.9 L188 58 L233 47.7 L278 51.9 L278 62 L8 62 Z" fill="#56B7C8" fill-opacity="0.13" stroke="none"/>
+          <path d="M8 18 L53 26.4 L98 38.7 L143 40.9 L188 58 L233 47.7 L278 51.9" fill="none" stroke="#56B7C8" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="278" cy="51.9" r="3.2" fill="#56B7C8"/>
+          <text x="8" y="12" fill="#79858B" font-family="IBM Plex Mono, monospace" font-size="8.5">3.643 € · Mo</text>
+          <text x="8" y="70" fill="#79858B" font-family="IBM Plex Mono, monospace" font-size="8.5">3.390 € · Fr</text>
+        </svg>
+      </div>
+      <div class="b-box" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span class="b-sync">BUDGET SEPTEMBER</span>
+          <span class="b-mono" style="font-size:12px">612,40 / 1.400,00</span>
+        </div>
+        <div class="b-bar"><i style="width:44%"></i><span class="mk" style="left:20%"></span></div>
+        <div class="b-sync" style="margin-top:6px">44 % VERBRAUCHT · SOLL AN TAG 6: 20 %</div>
+      </div>
+      <div class="b-sec"><span>UMSÄTZE</span><span>LETZTE 5</span></div>
+      <div class="b-row"><span class="b-cat" style="background:#4FA97B"></span><div class="b-txt"><div class="b-t">Gehalt neuwerk GmbH</div><div class="b-s">04.09 · Einkommen</div></div><div class="b-n"><b class="b-pos">+3.240,00</b></div></div>
+      <div class="b-row"><span class="b-cat" style="background:#E0A44A"></span><div class="b-txt"><div class="b-t">REWE Markt</div><div class="b-s">05.09 · Lebensmittel</div></div><div class="b-n"><b>−48,32</b></div></div>
+      <div class="b-row"><span class="b-cat" style="background:#56B7C8"></span><div class="b-txt"><div class="b-t">DB Fernverkehr</div><div class="b-s">04.09 · Mobilität</div></div><div class="b-n"><b>−59,90</b></div></div>
+      <div class="b-row"><span class="b-cat" style="background:#8B7FD4"></span><div class="b-txt"><div class="b-t">Telekom Deutschland</div><div class="b-s">03.09 · Fixkosten</div></div><div class="b-n"><b>−39,99</b></div></div>
+    </div>
+    <nav class="tabs">
+      <span class="tab"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab on"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab"><svg><use href="#i-more"/></svg>Mehr</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>B2</b> · Geld · Konto &amp; Budget</div>
+  </div>
+
+ </div></div>
+</section>
+<!-- ============ RICHTUNG C ============ -->
+<section class="dirsec">
+ <div class="wrap">
+  <div class="dirhead">
+    <div class="dirtitle"><span class="id">C</span><h2>Bento</h2></div>
+    <button class="pick" data-dir="C" aria-pressed="false">Diese Richtung merken</button>
+  </div>
+  <div class="dirbody">
+    <p class="why">Der Startscreen ist ein Raster aus Kacheln unterschiedlicher Größe — jede Kachel ist genau eine Information, jede Domäne hat ihre eigene Farbe. Du bestimmst per Halten und Ziehen, was groß ist und was oben liegt: In der Paketwoche wächst die Paketkachel, sonst schrumpft sie auf ein Quadrat. Weil die Kacheln dasselbe Format wie Homescreen-Widgets haben, lässt sich jede einzelne davon eins zu eins als Widget herauslösen. Die Nachrichtenkachel bekommt eine Serifenschrift und liest sich dadurch wie eine Zeitungsspalte statt wie eine weitere Liste.</p>
+    <div class="specs">
+      <div class="spec-row"><span class="k">Palette</span><span class="sw"><i style="background:#EBEDF0"></i><i style="background:#B85C22"></i><i style="background:#3A4CA0"></i><i style="background:#1B6B4C"></i><i style="background:#63479E"></i></span></div>
+      <div class="spec-row"><span class="k">Typo</span><span>Instrument Sans + Newsreader für Schlagzeilen</span></div>
+      <div class="spec-row"><span class="k">Dichte</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Nachts</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="spec-row"><span class="k">Widget</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+      <div class="spec-row"><span class="k">Aufwand</span><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+    </div>
+  </div>
+  <div class="prosconstr">
+    <div class="pc"><h4>Spricht dafür</h4><ul><li>Du baust dir das Dashboard selbst, ohne Code</li><li>Kacheln und Widgets sind dieselbe Komponente — einmal bauen, zweimal nutzen</li><li>Farbcodierung macht Domänen ohne Lesen unterscheidbar</li></ul></div>
+    <div class="pc"><h4>Spricht dagegen</h4><ul><li>Deutlich mehr Arbeit: Raster, Drag &amp; Drop, Größenlogik, Speicherung</li><li>Sechs Domänenfarben brauchen Disziplin, sonst wird es bunt</li><li>Reihenfolge nach Wichtigkeit geht verloren — das Raster ist statisch</li></ul></div>
+  </div>
+ </div>
+ <div class="stripwrap"><div class="strip">
+
+  <div class="pblock">
+   <div class="phone dir-c"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:12</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="c-top"><div class="c-date">Sonntag <span>6.9.</span></div><span class="c-edit">KACHELN ANORDNEN</span></div>
+      <div class="c-grid">
+        <div class="c-tile w2">
+          <span class="c-lab d-paket">Paket unterwegs</span>
+          <div style="font-size:16px;font-weight:600;letter-spacing:-.02em">DHL kommt 14–16 Uhr</div>
+          <div class="c-sub">Kopfhörer · 3404 3429 1188 42</div>
+          <div class="c-dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+        </div>
+        <div class="c-tile">
+          <span class="c-lab d-geld">Girokonto</span>
+          <div class="c-num">3.428<span style="font-size:14px">,60 €</span></div>
+          <div class="c-sub">Budget 612 von 1.400 €</div>
+          <div class="c-bar"><i style="width:44%;background:#1B6B4C"></i></div>
+        </div>
+        <div class="c-tile">
+          <span class="c-lab d-mail">Mail</span>
+          <div class="c-num">4</div>
+          <div class="c-sub">ungelesen · 1 mit Frist</div>
+        </div>
+        <div class="c-tile w2">
+          <span class="c-lab d-wetter">Heute</span>
+          <div style="display:flex;gap:9px;font-size:11.5px;align-items:baseline"><b style="font-family:var(--f-mono);font-size:11px">10:00</b><span>Brunch mit Lena · Café Klatsch</span></div>
+          <div style="display:flex;gap:9px;font-size:11.5px;align-items:baseline"><b style="font-family:var(--f-mono);font-size:11px">18:30</b><span>Lauftreff · Rheinaue</span></div>
+        </div>
+        <div class="c-tile">
+          <span class="c-lab d-todo">Aufgaben</span>
+          <div class="c-num">3</div>
+          <div class="c-mini"><div><span></span>Steuerunterlagen</div><div><span></span>Fahrradschloss</div></div>
+        </div>
+        <div class="c-tile">
+          <span class="c-lab d-wetter">Wetter</span>
+          <div class="c-num">19°</div>
+          <div class="c-sub">Bewölkt, Regen ab 16 Uhr<br>Bonn</div>
+        </div>
+        <div class="c-tile w2">
+          <span class="c-lab d-news">Nachrichten</span>
+          <div class="c-news">
+            <div class="it"><div class="c-serif">Koalition einigt sich auf Eckpunkte zum Netzausbau</div><div class="c-src">tagesschau · vor 40 min</div></div>
+            <div class="it"><div class="c-serif">Neue EU-Regeln für Datenräume in der Industrie</div><div class="c-src">heise online · vor 2 std</div></div>
+          </div>
+          <div class="c-sub" style="margin-top:2px">+ 10 weitere aus 4 Quellen</div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <span class="tab on"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab"><svg><use href="#i-more"/></svg>Mehr</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>C1</b> · Start</div>
+  </div>
+
+  <div class="pblock">
+   <div class="phone dir-c"><div class="cam"></div><div class="screen">
+    <div class="sb"><span>8:15</span><span class="r"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="bat"></span></span></div>
+    <div class="body">
+      <div class="c-top"><div class="c-date" style="white-space:nowrap">Pakete <span>· 3 unterwegs</span></div><span class="c-edit">+ SENDUNG</span></div>
+      <div style="display:flex;flex-direction:column;gap:9px;padding:3px 12px 12px">
+        <div class="c-ship">
+          <div style="display:flex;align-items:center;gap:8px"><span class="c-carrier t-paket">DHL</span><span class="c-sub" style="margin-left:auto;font-family:var(--f-mono);font-size:9.5px">3404 3429 1188 42</span></div>
+          <div style="font-size:13.5px;font-weight:600">Sony WH-1000XM6</div>
+          <div class="c-track"><span class="c-node on"></span><span class="c-seg on"></span><span class="c-node on"></span><span class="c-seg on"></span><span class="c-node on"></span><span class="c-seg"></span><span class="c-node"></span></div>
+          <div class="c-steps"><span>Abgeholt</span><span>Sortiert</span><span>Zustellung</span><span>Da</span></div>
+          <div class="c-sub"><b style="color:#B85C22">Heute 14–16 Uhr</b> · Zustellung an dich</div>
+        </div>
+        <div class="c-ship">
+          <div style="display:flex;align-items:center;gap:8px"><span class="c-carrier" style="background:#EFEAE1;color:#8A6432">AMAZON</span><span class="c-sub" style="margin-left:auto;font-family:var(--f-mono);font-size:9.5px">303-7742199-441</span></div>
+          <div style="font-size:13.5px;font-weight:600">Fahrradschloss ABUS Granit</div>
+          <div class="c-track"><span class="c-node on"></span><span class="c-seg on"></span><span class="c-node on"></span><span class="c-seg"></span><span class="c-node"></span><span class="c-seg"></span><span class="c-node"></span></div>
+          <div class="c-steps"><span>Abgeholt</span><span>Sortiert</span><span>Zustellung</span><span>Da</span></div>
+          <div class="c-sub">Voraussichtlich <b>Montag, 7.9.</b></div>
+        </div>
+        <div class="c-ship">
+          <div style="display:flex;align-items:center;gap:8px"><span class="c-carrier" style="background:#E4EAF3;color:#38558C">HERMES</span><span class="c-sub" style="margin-left:auto;font-family:var(--f-mono);font-size:9.5px">H10 2288 4471</span></div>
+          <div style="font-size:13.5px;font-weight:600">Rücksendung Jacke</div>
+          <div class="c-track"><span class="c-node on"></span><span class="c-seg on"></span><span class="c-node on"></span><span class="c-seg"></span><span class="c-node"></span><span class="c-seg"></span><span class="c-node"></span></div>
+          <div class="c-steps"><span>Im Shop</span><span>Unterwegs</span><span>Beim Händler</span><span>Erstattet</span></div>
+          <div class="c-sub">Erstattung offen · 89,95 € erwartet</div>
+        </div>
+        <div class="c-ship" style="opacity:.62">
+          <div style="display:flex;align-items:center;gap:8px"><span class="c-carrier t-paket">DHL</span><span class="c-sub" style="margin-left:auto;font-family:var(--f-mono);font-size:9.5px">zugestellt Fr 04.09</span></div>
+          <div style="font-size:13.5px;font-weight:600">Küchenwaage · in der Filiale abgeholt</div>
+        </div>
+      </div>
+    </div>
+    <nav class="tabs">
+      <span class="tab"><svg><use href="#i-home"/></svg>Heute</span>
+      <span class="tab"><svg><use href="#i-news"/></svg>News</span>
+      <span class="tab"><svg><use href="#i-mail"/></svg>Mail</span>
+      <span class="tab"><svg><use href="#i-wallet"/></svg>Geld</span>
+      <span class="tab on"><svg><use href="#i-box"/></svg>Pakete</span>
+    </nav>
+   </div></div>
+   <div class="pcap"><b>C2</b> · Pakete · Sendungsverfolgung</div>
+  </div>
+
+ </div></div>
+</section>
+<div class="wrap">
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Vergleich</span>
+    <h2>Nebeneinander gelegt</h2>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Richtung</th><th>Info pro Blick</th><th>Charakter</th><th>Widget-Nähe</th><th>Bauaufwand</th><th>Passt, wenn …</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A · Ruhiger Morgen</strong></td><td class="num">6–8 Zeilen</td><td>freundlich, systemnah</td><td>mittel</td><td class="num">~2 Wochen</td><td>… die App entlasten und nicht informieren soll</td></tr>
+        <tr><td><strong>B · Cockpit</strong></td><td class="num">14–18 Zeilen</td><td>nüchtern, technisch</td><td>gut</td><td class="num">~3 Wochen</td><td>… du morgens den Gesamtstand in einem Blick willst</td></tr>
+        <tr><td><strong>C · Bento</strong></td><td class="num">10–12 Kacheln</td><td>verspielt, modular</td><td>sehr gut</td><td class="num">~5 Wochen</td><td>… du das Dashboard selbst umbauen willst</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-top:18px;border-left:3px solid var(--accent)">
+    <h3>Meine Empfehlung: B als Basis, A als Tonfall für die Detailseiten</h3>
+    <p style="margin-top:6px">Acht Domänen auf einem Screen sind ein Dichteproblem, und genau das löst B: Statusbalken und Monospace-Zahlen machen den Gesamtstand in zwei Sekunden lesbar, ohne dass du scrollst. Die Detailseiten dürfen danach ruhig A folgen — dort geht es um eine Sache, da hilft Luft. C ist der beste Entwurf, aber der teuerste: Raster, Drag &amp; Drop und Größenlogik kosten Wochen, bevor die erste Zahl echt ist. Vorschlag: mit B starten, die Kachelkomponente aus C später für die Homescreen-Widgets bauen — dann hast du beides, in der richtigen Reihenfolge.</p>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Integrationen</span>
+    <h2>Was realistisch geht — und wo es klemmt</h2>
+    <p class="lede">Sortiert nach Aufwand für dich. Grün heißt: an einem Abend angebunden. Gelb heißt: Registrierung, Kontingent oder Pflegeaufwand.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Bereich</th><th>Quelle</th><th>Zugang</th><th>Machbarkeit</th><th>Haken</th></tr></thead>
+      <tbody>
+        <tr><td>Mail</td><td>Gmail API</td><td>OAuth, nur lesen</td><td><span class="dot ok">einfach</span></td><td>Eigenes Google-Cloud-Projekt, du als Testnutzer — keine App-Prüfung nötig</td></tr>
+        <tr><td>Mail (weitere)</td><td>IMAP</td><td>App-Passwort</td><td><span class="dot ok">einfach</span></td><td>IDLE kostet Akku, besser alle 15 Minuten abfragen</td></tr>
+        <tr><td>Kalender</td><td>CalendarContract</td><td>Leseberechtigung</td><td><span class="dot ok">einfach</span></td><td>Nutzt die Konten, die auf dem Gerät schon eingerichtet sind</td></tr>
+        <tr><td>News</td><td>RSS / Atom</td><td>offen</td><td><span class="dot ok">einfach</span></td><td>tagesschau, heise, Golem liefern vollständige Feeds</td></tr>
+        <tr><td>Wetter</td><td>Bright Sky (DWD)</td><td>offen, kein Schlüssel</td><td><span class="dot ok">einfach</span></td><td>Deutsche Stationsdaten, sehr genaue Regenprognose</td></tr>
+        <tr><td>Aufgaben</td><td>lokal / Google Tasks</td><td>Room bzw. OAuth</td><td><span class="dot ok">einfach</span></td><td>Erst lokal bauen, Sync später nachrüsten</td></tr>
+        <tr><td>Pakete · Erkennung</td><td>Versandmails</td><td>über das Postfach</td><td><span class="dot mid">mittel</span></td><td>Pro Händler ein Erkennungsmuster, muss gepflegt werden</td></tr>
+        <tr><td>Pakete · Status</td><td>DHL API, 17TRACK</td><td>API-Schlüssel</td><td><span class="dot mid">mittel</span></td><td>DHL allein ist kostenlos; Aggregatoren haben knappe Freikontingente</td></tr>
+        <tr><td>Konten</td><td>PSD2 über GoCardless Bank Account Data</td><td>OAuth pro Bank</td><td><span class="dot mid">mittel</span></td><td>Kostenlos, aber alle 90 Tage neu bestätigen; Zugangsdaten gehören nicht in die App → Bridge</td></tr>
+        <tr><td>Konten (Alternative)</td><td>FinTS / HBCI</td><td>PIN + TAN</td><td><span class="dot mid">mittel</span></td><td>Direkt zur Bank, ohne Dritten — braucht aber eine Produktregistrierung</td></tr>
+        <tr><td>Puls</td><td>Health Connect</td><td>Berechtigung je Datentyp</td><td><span class="dot mid">mittel</span></td><td>Samsung Health schreibt dorthin; direkter Samsung-SDK-Zugang ist gesperrt</td></tr>
+        <tr><td>Weg</td><td>DB / HAFAS</td><td>API-Schlüssel</td><td><span class="dot mid">mittel</span></td><td>Nur sinnvoll für zwei, drei feste Strecken</td></tr>
+        <tr><td>Überweisungen</td><td>—</td><td>—</td><td><span class="dot no">nicht vorgesehen</span></td><td>Zahlungsauslösung braucht BaFin-Lizenz. Tory bleibt lesend.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Technik</span>
+    <h2>Wie das Ganze gebaut wird</h2>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Client</h3>
+      <ul class="plain">
+        <li><strong>Kotlin + Jetpack Compose</strong>, Material 3 als Grundlage, eigene Design-Tokens darüber</li>
+        <li><strong>Room</strong> als einzige Wahrheit im Gerät — die Oberfläche liest nie direkt vom Netz</li>
+        <li><strong>WorkManager</strong> für jede Quelle mit eigenem Takt: Mail 15 min, News 30 min, Pakete 1 h, Konten 6 h</li>
+        <li><strong>Glance</strong> für Homescreen-Widgets aus denselben Daten</li>
+        <li><strong>Hilt</strong>, Ktor Client, kotlinx.serialization</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Modulschnitt</h3>
+      <ul class="plain">
+        <li><code>:app</code> — Navigation, Startscreen, Zusammenbau</li>
+        <li><code>:core:design</code> — Tokens, Komponenten, die gewählte Richtung</li>
+        <li><code>:core:data</code> — Ereignismodell, Room, Repositories</li>
+        <li><code>:core:network</code> — Ktor, OAuth, Fehler- und Wiederholungslogik</li>
+        <li><code>:feature:mail</code>, <code>:feature:pakete</code>, <code>:feature:geld</code>, … — je Domäne ein Modul mit gleichem Vertrag: <em>liefere deine Signale</em></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Geheimnisse &amp; Bridge</h3>
+      <p style="color:var(--muted);font-size:14px">Bank-Aggregatoren vergeben Zugangsdaten, die niemals in einer APK liegen dürfen — sie ließen sich auslesen. Deshalb ein winziger eigener Dienst („Tory Bridge“, Ktor oder Python, auf deinem Server): Er hält die Bank-Zugangsdaten, die App bekommt nur kurzlebige Token. Alles andere — Gmail, Kalender, RSS — läuft direkt vom Telefon, ohne Zwischenstation. App-seitig liegen Token in EncryptedSharedPreferences hinter dem Android-Keystore.</p>
+    </div>
+    <div class="card">
+      <h3>Samsung-Besonderheiten, die sich lohnen</h3>
+      <ul class="plain">
+        <li><strong>Modi und Routinen</strong> — „Morgens 7:30“ startet den Sync und schickt den Morgenbrief</li>
+        <li><strong>Always-On-Display</strong> — nächstes Signal als eine Zeile</li>
+        <li><strong>Edge-Panel</strong> — Aufgaben schnell erfassen, ohne die App zu öffnen</li>
+        <li><strong>Akku-Optimierung</strong> — One UI beendet Hintergrunddienste hart; Sync gehört deshalb in WorkManager, nicht in einen Foreground-Service</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="sec-head">
+    <span class="eyebrow">Reihenfolge</span>
+    <h2>Vom Gerüst zur täglich genutzten App</h2>
+    <p class="lede">Die Stufen bauen aufeinander auf: Jede endet mit etwas, das du auf dem Telefon benutzen kannst — nicht mit einem halben Feature.</p>
+  </div>
+  <div class="grid3">
+    <div class="modcard"><div class="top"><h3>M0 · Gerüst</h3><span class="tag">1 Woche</span></div><p>Projekt, Modulschnitt, gewähltes Design als Compose-Theme, Startscreen mit erfundenen Daten. Läuft auf dem Gerät, sieht fertig aus, kann nichts.</p></div>
+    <div class="modcard"><div class="top"><h3>M1 · Erste echte Daten</h3><span class="tag">2 Wochen</span></div><p>Kalender, Aufgaben, News, Gmail-Fokus. Ab hier ersetzt Tory morgens vier App-Starts — der Punkt, an dem sich das Weiterbauen entscheidet.</p></div>
+    <div class="modcard"><div class="top"><h3>M2 · Pakete &amp; Widget</h3><span class="tag">1–2 Wochen</span></div><p>Versandmails erkennen, Status abrufen, Zustellfenster als Signal. Dazu das erste Homescreen-Widget.</p></div>
+    <div class="modcard"><div class="top"><h3>M3 · Geld</h3><span class="tag">2 Wochen</span></div><p>Bridge aufsetzen, Konten anbinden, Umsätze kategorisieren, Budget und kommende Abbuchungen. Geld-Tab hinter Biometrie.</p></div>
+    <div class="modcard"><div class="top"><h3>M4 · Feinschliff</h3><span class="tag">offen</span></div><p>Puls, Wetter, Wege, Morgenbrief als Routine, Datenexport. Ab hier nur noch das, was du im Alltag wirklich vermisst.</p></div>
+    <div class="modcard" style="border-style:dashed"><div class="top"><h3>Nächster Schritt</h3><span class="tag">du</span></div><p>Sag mir <strong>A</strong>, <strong>B</strong> oder <strong>C</strong> — oder eine Mischung. Danach lege ich das Compose-Projekt mit M0 an: Theme, Modulschnitt, Startscreen mit Beispieldaten, direkt lauffähig auf deinem Galaxy.</p></div>
+  </div>
+</section>
+
+<footer class="sec" style="padding:28px 0 60px">
+  <p style="font-size:12.5px;color:var(--muted);font-family:var(--f-mono)">Tory · Konzept und Designvorschlag · alle Daten in den Mockups sind erfunden</p>
+</footer>
+</div>
+
+<script>
+(function(){
+  var KEY = "tory.direction";
+  var buttons = Array.prototype.slice.call(document.querySelectorAll(".pick"));
+  function paint(sel){
+    buttons.forEach(function(b){
+      var on = b.dataset.dir === sel;
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+      b.textContent = on ? "Gemerkt: Richtung " + b.dataset.dir : "Diese Richtung merken";
+    });
+  }
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch (e) { stored = null; }
+  if (stored) paint(stored);
+  buttons.forEach(function(b){
+    b.addEventListener("click", function(){
+      var next = b.getAttribute("aria-pressed") === "true" ? null : b.dataset.dir;
+      try { next ? localStorage.setItem(KEY, next) : localStorage.removeItem(KEY); } catch (e) {}
+      paint(next);
+    });
+  });
+})();
+</script>
