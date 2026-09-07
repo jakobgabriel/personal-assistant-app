@@ -12,6 +12,8 @@ Entwurf und drei Designrichtungen zur Auswahl.
 | Produktkonzept, Module, Integrationen, Roadmap | [`docs/konzept.md`](docs/konzept.md) |
 | Technische Architektur, Modulschnitt, Sync, Secrets | [`docs/architektur.md`](docs/architektur.md) |
 | Die drei Designrichtungen im Vergleich | [`docs/design-richtungen.md`](docs/design-richtungen.md) |
+| Schnittstellendefinition (Datenmodell, Modulvertrag) | [`docs/schnittstellen.md`](docs/schnittstellen.md) |
+| Kotlin-Verträge + Abdeckungsprüfung | [`contracts/`](contracts/) |
 | Interaktive Mockups (Artifact-Seite) | [`mockups/tory-mockups.html`](mockups/tory-mockups.html) |
 
 ## Nächster Schritt
