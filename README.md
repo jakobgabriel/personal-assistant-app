@@ -20,8 +20,9 @@ erste Schritt, das Tagesbriefing, laeuft.
 ## Stand
 
 M0 bis M2 sind gebaut: Kern, alle fuenf Anbindungen, Oberflaeche mit
-vollstaendigen Einstellungen. Der Kern hat 106 Tests gegen aufgezeichnete
-Antworten der Dienste, die Rust-Seite ist clippy-sauber, die Oberflaeche
+vollstaendigen Einstellungen. Der Kern hat 111 Tests — 106 gegen
+aufgezeichnete Antworten der Dienste, fuenf als Durchstich gegen einen
+lokalen Testserver, die Rust-Seite ist clippy-sauber, die Oberflaeche
 typprueft ohne Fehler.
 
 Was fehlt, ist die Android-Uebersetzung selbst (`tauri android init`,
@@ -69,7 +70,7 @@ sudo apt install libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev \
 ### Kern pruefen (braucht nichts davon)
 
 ```bash
-cargo test -p tory-core        # 106 Tests, ohne Netz
+cargo test -p tory-core        # 111 Tests, kein Dienst noetig
 cargo clippy --all-targets
 ```
 

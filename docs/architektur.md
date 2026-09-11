@@ -44,7 +44,7 @@ WebView und ohne Netz pruefbar.
 
 ```
 $ cargo test -p tory-core
-test result: ok. 106 passed
+test result: ok. 111 passed
 ```
 
 ## Der Vertrag pro Quelle
@@ -218,3 +218,23 @@ Oberflaeche kann damit nicht zu einem Zugriff auf das Dateisystem werden.
 * **Kaum Schreibzugriffe.** Genau einer geht nach aussen: eine Mindwtr-Aufgabe
   abhaken. Alles andere ist lesend.
 * **Keine Geraete-Synchronisation.** Ein Telefon, eine Datenbank.
+
+## Durchstich
+
+Die Modultests pruefen die Abbildung (Antwort → Signal) ohne Netz. Was sie nicht
+pruefen: ob die **Anfrage** richtig gebaut wird.
+
+`crates/tory-core/tests/durchstich.rs` schliesst die Luecke mit einem winzigen
+HTTP-Server aus der Standardbibliothek. Er liefert dieselben aufgezeichneten
+Antworten aus und schreibt mit, was angefragt wurde:
+
+* `Authorization: Bearer …` bei Mindwtr, `xc-token` bei NocoDB
+* `status=` und `limit=` in der Query, `sort=` nach der Datumsspalte
+* dass aus einer Basis-URL nicht `/v1/v1/tasks` wird
+
+Dazu die Faelle, in denen etwas schiefgeht: ein fehlendes Token laesst die
+anderen Quellen weiterlaufen und wird nicht im Takt wiederholt; ein
+unerreichbarer Server laesst die alten Zahlen stehen und markiert sie als alt;
+eine weggewischte Zeile bleibt weg, auch wenn die Quelle sie erneut liefert.
+
+Kein Dienst muss dafuer laufen.
