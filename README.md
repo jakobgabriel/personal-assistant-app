@@ -85,7 +85,36 @@ npm run tauri dev              # oder: npm run tauri build
 Der Desktop ist die schnelle Schleife: dieselbe Oberflaeche, derselbe Kern,
 ohne Emulator. Das Fenster ist bewusst telefonschmal.
 
-### Android
+### Android — das APK kommt aus der CI
+
+Der einfachste Weg zum installierbaren APK fuehrt ueber GitHub Actions: der
+Runner bringt Android-SDK und NDK mit, zusammen mehrere Gigabyte, die sonst
+lokal liegen muessten.
+
+```
+Actions → „Android-APK" → Run workflow        (oder einfach pushen)
+                        ↓
+              Artifacts → tory-apk-<sha>
+```
+
+Jeder Push auf `main` oder einen `claude/**`-Branch baut mit; per *Run workflow*
+laesst sich waehlen, ob nur fuer `aarch64` (jedes Telefon seit etwa 2016,
+Samsung Galaxy eingeschlossen) oder fuer alle vier Architekturen gebaut wird.
+
+Das Ergebnis ist ein **Debug-APK**. Das ist Absicht:
+
+* Es ist mit dem Debug-Schluessel signiert und damit installierbar. Ein
+  Release-APK waere ohne eigenen Keystore unsigniert und liesse sich gar nicht
+  installieren.
+* `usesCleartextTraffic` ist darin an. Selbst gehostete Dienste laufen im
+  eigenen Netz oft ueber `http://192.168.…`, und ein Release-Build blockiert das.
+
+Zum Installieren: Artefakt herunterladen, entpacken, die `.apk` auf das Telefon
+uebertragen und oeffnen. Android fragt einmal nach der Erlaubnis, aus dieser
+Quelle zu installieren. Release-Signierung steht im Anhang von
+[`docs/integrationen.md`](docs/integrationen.md#anhang--release-signierung).
+
+### Android — lokal
 
 ```bash
 # einmalig: Android SDK + NDK, dann
@@ -95,14 +124,20 @@ rustup target add aarch64-linux-android armv7-linux-androideabi \
                   i686-linux-android x86_64-linux-android
 
 cd app
-npm run tauri android init
-npm run tauri android dev      # oder: android build --apk
+npm run tauri -- android init --skip-targets-install
+node scripts/android-manifest.mjs          # Deep-Link eintragen
+npm run tauri -- android dev               # oder: android build --apk --debug
 ```
 
-Nach `android init` gehoert der Intent-Filter fuer `de.tory.app://` in die
-erzeugte `AndroidManifest.xml` — sonst kommt die Gmail-Anmeldung nicht
-zurueck. Der genaue Ausschnitt steht in
-[`docs/integrationen.md`](docs/integrationen.md#4--gmail--lesend).
+Der Schritt mit `scripts/android-manifest.mjs` ist nicht optional: ein eigenes
+URL-Schema wie `de.tory.app://` laesst sich auf Android nicht aus
+`tauri.conf.json` anmelden — dort gibt es unter `deep-link.mobile` nur App Links
+ueber https. Ohne den Eintrag startet die Gmail-Anmeldung zwar, aber die
+Rueckleitung kommt nie an. Das Skript ist idempotent und bricht ab, wenn sich
+der Aufbau des erzeugten Manifests geaendert hat.
+
+`gen/android` liegt bewusst nicht im Repository: es ist Bauergebnis und haengt
+an der Tauri-Version. Was daran Quelltext ist, steht im Skript.
 
 ## Wo die Daten liegen
 

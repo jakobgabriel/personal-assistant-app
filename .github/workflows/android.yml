@@ -65,13 +65,24 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+      # rustup liegt auf dem Runner. Das spart eine Fremd-Action — in einem
+      # privaten Repository ist jede eingebundene Action eine Vertrauensfrage
+      # mehr, und hier braucht es dafuer genau zwei Zeilen.
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+          rustc --version
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
         with:
-          workspaces: ". -> target"
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: cargo-host-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-host-${{ runner.os }}-
 
       - name: Kern testen
         run: cargo test -p tory-core
@@ -114,19 +125,24 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - name: Rust mit Android-Zielen
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: >-
-            aarch64-linux-android,
-            armv7-linux-androideabi,
-            i686-linux-android,
-            x86_64-linux-android
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-linux-android armv7-linux-androideabi \
+                            i686-linux-android x86_64-linux-android
+          rustc --version
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/cache@v4
         with:
-          workspaces: ". -> target"
-          # Sonst teilen sich Host- und Android-Build denselben Cache-Schluessel.
-          key: android
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          # Eigener Schluessel: sonst teilen sich Host- und Android-Build einen
+          # Cache, und beide fuellen ihn abwechselnd mit dem Falschen.
+          key: cargo-android-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-android-${{ runner.os }}-
 
       # Der Runner bringt ein NDK mit. Es zu benutzen spart einen Download von
       # ueber einem Gigabyte; nur wenn keins da ist, wird eines nachgeladen.

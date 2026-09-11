@@ -284,3 +284,43 @@ Stunden wird die Karte sichtbar blass — damit nie ein alter Stand als aktuelle
 durchgeht.
 
 Wo die Daten liegen, steht in den Einstellungen unter *Ueber*.
+
+---
+
+## Anhang · Release-Signierung
+
+Der CI-Lauf baut ein Debug-APK, weil es sofort installierbar ist. Wer ein
+Release-APK will — kleiner, schneller, aber mit abgeschaltetem Cleartext —
+braucht einen eigenen Keystore:
+
+```bash
+keytool -genkey -v -keystore tory.jks -keyalg RSA -keysize 2048 \
+        -validity 10000 -alias tory
+```
+
+Der Keystore gehoert **nicht** ins Repository. In GitHub unter *Settings →
+Secrets → Actions* hinterlegen:
+
+| Secret | Inhalt |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | `base64 -w0 tory.jks` |
+| `ANDROID_KEYSTORE_PASSWORD` | das Keystore-Passwort |
+| `ANDROID_KEY_ALIAS` | `tory` |
+| `ANDROID_KEY_PASSWORD` | das Schluesselpasswort |
+
+Im Lauf danach vor dem Build eine `keystore.properties` neben
+`gen/android/app/` schreiben und den `signingConfigs`-Block in
+`app/build.gradle.kts` ergaenzen — beides beschreibt die Tauri-Dokumentation
+unter *Distribute → Google Play*.
+
+Zwei Dinge, die dabei auffallen werden:
+
+* **Cleartext.** Ein Release-Build setzt `usesCleartextTraffic` auf `false`.
+  Laufen Mindwtr oder NocoDB im eigenen Netz ueber `http://`, antwortet Tory
+  danach mit „kein Netz". Entweder die Dienste hinter HTTPS legen (Caddy macht
+  das mit zwei Zeilen) oder eine `network_security_config.xml` mit den eigenen
+  Hosts hinterlegen.
+* **Der Deep Link bleibt noetig.** `scripts/android-manifest.mjs` laeuft auch im
+  Release-Pfad, sonst kommt die Gmail-Anmeldung nicht zurueck.
+
+Fuer ein Telefon lohnt der Aufwand selten. Das Debug-APK tut dasselbe.
