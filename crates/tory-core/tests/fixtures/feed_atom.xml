@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Beispiel Atom</title>
+  <id>urn:example:feed</id>
+  <updated>2026-09-10T09:00:00Z</updated>
+  <entry>
+    <title>Neue Rust-Version</title>
+    <id>urn:example:rust</id>
+    <updated>2026-09-10T09:00:00Z</updated>
+    <published>2026-09-10T08:30:00Z</published>
+    <link rel="alternate" href="https://example.de/rust"/>
+    <summary type="html">&lt;p&gt;Mit neuen Lints.&lt;/p&gt;</summary>
+  </entry>
+</feed>

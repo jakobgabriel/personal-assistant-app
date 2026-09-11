@@ -1,0 +1,30 @@
+[package]
+name = "tory-core"
+description = "Domain model, connectors and sync engine for Tory. Free of any UI or Tauri dependency."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+log.workspace = true
+tokio.workspace = true
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip"] }
+rusqlite = { version = "0.32", features = ["bundled", "chrono"] }
+feed-rs = "2"
+quick-xml = "0.37"
+aes-gcm = "0.10"
+rand = "0.8"
+base64 = "0.22"
+sha2 = "0.10"
+url = "2"
+percent-encoding = "2"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt", "time"] }

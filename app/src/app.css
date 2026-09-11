@@ -1,0 +1,157 @@
+/* Designrichtung B ("Cockpit") aus docs/design-richtungen.md: dunkel, dicht,
+   ohne Kartenrahmen. Haarlinien statt Boxen, ein schmaler Statusbalken links
+   markiert die Dringlichkeit, Zahlen in Monospace mit gleicher Ziffernbreite.
+
+   Richtung A ("Ruhiger Morgen") liegt als helles Thema daneben — dieselbe
+   Struktur, andere Werte. Umschaltbar in den Einstellungen. */
+
+:root {
+  --grund: #0c0f11;
+  --flaeche: #141819;
+  --flaeche-hoch: #1b2123;
+  --linie: #242b2e;
+  --text: #e6eaeb;
+  --text-leise: #8b979b;
+  --text-sehr-leise: #5d686c;
+
+  --akzent: #56b7c8;
+  --kritisch: #d45b4a;
+  --hoch: #e0a44a;
+  --normal: #56b7c8;
+  --info: #5d686c;
+
+  --radius: 10px;
+  --gasse: 16px;
+
+  --schrift: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+:root[data-thema="calm"] {
+  --grund: #f4f2ed;
+  --flaeche: #ffffff;
+  --flaeche-hoch: #ffffff;
+  --linie: #e3e0d9;
+  --text: #1b1e1c;
+  --text-leise: #5f6663;
+  --text-sehr-leise: #8b918e;
+
+  --akzent: #0f5c63;
+  --kritisch: #bf5340;
+  --hoch: #a9741f;
+  --normal: #0f5c63;
+  --info: #8b918e;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--grund);
+  color: var(--text);
+  font-family: var(--schrift);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  /* Ein Dashboard ist zum Lesen und Antippen da, nicht zum Markieren. */
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior-y: contain;
+}
+
+#app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  /* Ohne das blitzt unter Android bei jedem Tippen ein blaues Rechteck. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--grund);
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  padding: 8px 10px;
+  width: 100%;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+}
+
+.zahl {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-sehr-leise);
+}
+
+.leise {
+  color: var(--text-leise);
+}
+
+.u-critical { --u: var(--kritisch); }
+.u-high     { --u: var(--hoch); }
+.u-normal   { --u: var(--normal); }
+.u-info     { --u: var(--info); }
+
+/* Ein schmaler Balken links, so breit wie eine Haarlinie zu wenig waere. */
+.balken {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--u, var(--info));
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.veraltet {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fade {
+    animation: fade-in 160ms ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}

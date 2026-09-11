@@ -1,0 +1,18 @@
+# Rust
+/target
+**/target
+
+# Node
+node_modules
+/app/dist
+/app/.vite
+
+# Tauri
+/app/src-tauri/gen
+/app/src-tauri/target
+
+# Lokale Daten (Konfiguration und Geheimnisse gehoeren nie ins Repository)
+*.sqlite3
+*.sqlite3-*
+secrets.bin
+device.key

@@ -55,3 +55,24 @@ Statusbalken und Monospace-Zahlen machen den Gesamtstand in zwei Sekunden
 lesbar. Detailseiten dürfen danach A folgen — dort geht es um eine Sache, da
 hilft Luft. C ist der stärkste Entwurf, aber der teuerste; die Kachelkomponente
 lohnt sich später für die Homescreen-Widgets.
+
+## Was daraus wurde
+
+Gebaut ist **B als Basis** — dunkel, dicht, Statusbalken links, Zahlen in
+Monospace. Die Empfehlung oben ist damit umgesetzt.
+
+**A liegt daneben**, nicht als zweite Oberflaeche, sondern als zweiter Satz von
+Werten: `app/src/app.css` definiert die Farben einmal als CSS-Variablen und
+einmal unter `:root[data-thema="calm"]`. Umschaltbar in den Einstellungen unter
+*Startscreen · Darstellung*. Das war billiger als gedacht, weil die Struktur in
+beiden Richtungen dieselbe ist — nur die Werte unterscheiden sich.
+
+**C ist nicht gebaut.** Das Raster mit Ziehen und Groessenlogik ist ein eigenes
+Stueck Arbeit und lohnt erst mit dem Homescreen-Widget, weil Kachel und Widget
+dann dieselbe Komponente waeren. Die Kartenreihenfolge ist aber schon
+konfigurierbar (`dashboard.card_order`) — der Teil von C, der ohne Raster
+funktioniert.
+
+Der Hinweis aus der Bewertung von B hat sich bestaetigt: die Richtung braucht
+saubere Daten. Genau deshalb traegt jede Karte ihren Sync-Stand und wird blass,
+sobald er aelter als zwei Stunden ist.

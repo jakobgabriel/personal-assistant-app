@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Beispielnachrichten</title>
+    <link>https://example.de</link>
+    <description>Testfeed</description>
+    <item>
+      <title>Bundesrat beschliesst Haushalt</title>
+      <link>https://example.de/haushalt</link>
+      <guid isPermaLink="false">urn:beispiel:1</guid>
+      <pubDate>Thu, 10 Sep 2026 08:12:00 +0200</pubDate>
+      <description>Der Bundesrat hat dem Haushalt zugestimmt.</description>
+    </item>
+    <item>
+      <title>Sturmwarnung fuer den Norden</title>
+      <link>https://example.de/sturm</link>
+      <guid isPermaLink="false">urn:beispiel:2</guid>
+      <pubDate>Thu, 10 Sep 2026 06:00:00 +0200</pubDate>
+      <description><![CDATA[<p>Es werden <strong>Sturmboeen</strong> erwartet.</p>]]></description>
+    </item>
+  </channel>
+</rss>

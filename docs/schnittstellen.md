@@ -1,133 +1,155 @@
 # Tory — Schnittstellendefinition
 
-Der Vertrag zwischen Datenquellen, Modulen und Dashboard. Ziel: **jede
-Information, die in den Mockups sichtbar ist, hat genau ein Feld im Modell** —
-und keine Domäne braucht Sonderbehandlung im Startscreen.
+Der Vertrag zwischen Quellen, Kern und Oberflaeche. Ziel: **jede Quelle liefert
+dieselben zwei Typen**, und der Startscreen braucht fuer keine eine
+Sonderbehandlung.
 
-Quellen: [`contracts/src/main/kotlin/de/tory/core/`](../contracts/src/main/kotlin/de/tory/core/)
-Prüfung: `python3 contracts/pruefe_abdeckung.py`
+Quelle der Wahrheit: [`crates/tory-core/src/model.rs`](../crates/tory-core/src/model.rs).
+Diese Seite erklaert das Warum; die Datei ist verbindlich.
+
+Die Bezeichner sind englisch, die Dokumentation deutsch. Die frueheren deutschen
+Namen bilden sich so ab: `Signal` → `Signal`, `Dringlichkeit` → `Urgency`,
+`QuellenId` → `SourceRef`, `DomaenenUebersicht` → `Overview`, `SyncStand` →
+`SyncState`, `SyncFehler` → `SyncFault`.
 
 ## Die drei Ebenen
 
 ```
-Quelle (Gmail, DHL, Bank, RSS)
-   |  DomaeneModul.sync()          -> schreibt in Room
-   v
-Element (MailNachricht, Sendung, Konto, Umsatz, Aufgabe, Termin, ...)
-   |  DomaeneModul.signale()       -> was heute Aufmerksamkeit braucht
-   |  DomaeneModul.uebersicht()    -> Karte / Kennzahl / Kachel
-   v
-Startseite (Signal, DomaenenUebersicht)  -> die Oberflaeche liest nur das
+Quelle (Vault, Mindwtr, NocoDB, Gmail, Feed)
+   │  Connector::fetch()      → holt und bildet ab
+   ▼
+Harvest { source, signals, overview }
+   │  Store::apply_harvest()  → ersetzt die Zeilen dieser Quelle
+   ▼
+SQLite  ──  Engine::dashboard()  →  die Oberflaeche liest nur das
 ```
 
-Die Oberfläche kennt **Element-Typen nur auf den Detailseiten**. Der
-Startscreen kennt ausschließlich `Signal` und `DomaenenUebersicht` — deshalb
-ändert ein neues Modul den Startscreen nicht.
+Die Oberflaeche sieht nie einen Connector und nie eine Antwort eines Dienstes.
+Sie sieht `Signal`, `Overview` und `SyncState`.
 
 ## 1 · Signal — der gemeinsame Nenner
 
-Alles, was auf den Startscreen darf, ist ein `Signal`: etwas mit Zeitpunkt,
-Betrag oder Handlungsbedarf.
+Alles, was auf den Startscreen darf, ist ein `Signal`.
 
-| Feld | Wofür in den Mockups |
+| Feld | Wofuer |
 | --- | --- |
-| `titel`, `untertitel` | die zwei Zeilen jeder Signalzeile |
-| `dringlichkeit` | Farbe des Statusbalkens (B), Sortierung überall |
-| `zeitpunkt` + `zeitpunktArt` | „in 5 h" vs. „FRIST 1 T" vs. „fällig am" |
-| `zeitfenster` | „14–16 Uhr" — Zustellfenster brauchen eine Spanne, keinen Punkt |
-| `betrag` | „EUR 1.180,00" |
-| `kennung` | Sendungsnummer, IBAN-Endung, Ort |
-| `aktion` | was beim Antippen passiert |
-| `erledigbar`, `stummBis` | abhaken bzw. „später" direkt in der Zeile |
+| `id` | innerhalb der Quelle **stabil** — sonst verliert „spaeter bis" seinen Bezug |
+| `source` | Art, Instanz und Beschriftung |
+| `title`, `subtitle` | die zwei Zeilen jeder Signalzeile |
+| `excerpt` | Vorschau auf Detailseiten. Nie der Volltext |
+| `at` + `time_kind` | „heute faellig" vs. „in 5 h" vs. „vor 20 Min" |
+| `window_end` | bei `Window`: die zweite Haelfte von „14–16 Uhr" |
+| `urgency` | Farbe des Statusbalkens und Sortierung ueberall |
+| `badge` | Projektname, Absender, Tabellenname |
+| `tags` | fuer Filter auf den Detailseiten |
+| `action` | was beim Antippen passiert |
+| `completable` | darf in der Zeile abgehakt werden |
+| `dedup_key` | dieselbe Sache aus zwei Quellen erscheint einmal |
 
-`zeitpunktArt` ist der Grund, warum die App aus einem `Instant` die richtige
-Formulierung ableiten kann, ohne pro Domäne eine Sonderregel zu haben.
+### Warum `time_kind` ein eigenes Feld ist
 
-## 2 · DomaenenUebersicht — eine Struktur für drei Designrichtungen
+Ein `DateTime` allein sagt nicht, wie es zu lesen ist. Dieselbe Zahl heisst bei
+einer Aufgabe „faellig am", bei einem Termin „um", bei einer Mail „vor". Ohne
+dieses Feld braeuchte die Oberflaeche pro Quelle eine Sonderregel — genau das,
+was das Modell verhindern soll.
 
-Dieselben Daten bedienen die Karte in A, die Kennzahlenzeile in B und die
-Kachel in C. Die Richtung entscheidet nur, welche Felder sie zeigt:
+| `TimeKind` | Formulierung |
+| --- | --- |
+| `At` | „14:30", „morgen 09:00" |
+| `Due` | „heute faellig", „Frist 3 T", „2 T ueberfaellig" |
+| `Window` | „14–16 Uhr" (braucht `window_end`) |
+| `Since` | „vor 20 Min" |
+
+### Warum `dedup_key` nicht `id` ist
+
+`id` identifiziert **den Datensatz in seiner Quelle**. `dedup_key` identifiziert
+**die Sache in der Welt**. Eine Aufgabe, die in einem Vault und in Mindwtr
+steht, hat zwei `id` und einen `dedup_key`. Der Store zeigt dann die erste —
+nach Dringlichkeit sortiert, also die dringlichere.
+
+## 2 · Overview — eine Struktur, drei Designrichtungen
+
+Dieselben Daten bedienen die Karte in Richtung A, die Kennzahlenzeile in B und
+die Kachel in C. Die Richtung entscheidet nur, welche Felder sie zeigt.
 
 | Feld | A · Karte | B · Kennzahlenleiste | C · Kachel |
 | --- | --- | --- | --- |
-| `kennzahl` / `bezeichnung` | Kartentitel-Zusatz | die Zahl in der Leiste | große Zahl |
-| `zusatz` | — | — | „1 mit Frist" |
-| `zeilen` (`Kurzzeile`) | Zeilen der Karte | — | Kachelinhalt |
-| `trend` | — | Sparkline | — |
-| `fortschritt` | — | Budgetbalken | Balken / Punktkette |
-| `stand` | „vor 2 Min" | „SYNC VOR 2 MIN" | Grauton bei Veralterung |
+| `metric` / `caption` | Kartentitel-Zusatz | die Zahl in der Leiste | grosse Zahl |
+| `note` | — | — | „1 mit Frist" |
+| `lines` | Zeilen der Karte | — | Kachelinhalt |
+| `progress` | — | Fortschrittsbalken | Balken |
+| `metric_raw` | Schwellen | Sortierung | Farbwahl |
 
-`kennzahl` ist bereits formatiert (`"3.428,60 €"`), `kennzahlRoh` derselbe Wert
-als Zahl für Schwellen und Sortierung. Formatierung passiert einmal im Modul,
-nicht dreimal in drei Designrichtungen.
+`metric` ist bereits formatiert (`"12"`, `"3.428,60 €"`), `metric_raw` derselbe
+Wert als Zahl. Formatierung passiert einmal im Connector, nicht dreimal in drei
+Designrichtungen.
 
-## 3 · DomaeneModul — der Vertrag pro Domäne
+## 3 · Connector — der Vertrag pro Quelle
 
-```kotlin
-interface DomaeneModul {
-    val id: QuellenId
-    fun signale(): Flow<List<Signal>>
-    fun uebersicht(): Flow<DomaenenUebersicht>
-    fun elemente(filter: Filter = Filter.KEINER): Flow<List<DomaenenElement>>
-    fun status(): StateFlow<QuellenStatus>
-    suspend fun sync(anlass: SyncAnlass): SyncErgebnis
-    suspend fun anmelden(): AnmeldeErgebnis
-    suspend fun abmelden()
+```rust
+#[async_trait]
+pub trait Connector: Send + Sync {
+    fn source(&self) -> &SourceRef;
+    async fn fetch(&self, ctx: &SyncContext<'_>) -> Result<Harvest>;
+    async fn complete(&self, ctx: &SyncContext<'_>, item_id: &str) -> Result<()>;
 }
 ```
 
 Regeln, die den Vertrag tragen:
 
-* `sync()` wird **nur** vom WorkManager gerufen, nie aus der Oberfläche.
-* `signale()` und `uebersicht()` lesen ausschließlich aus Room — offline sofort da.
-* `abmelden()` löscht Tokens *und* alle lokalen Daten der Quelle.
-* Ein Modul, das nichts zu melden hat, liefert eine leere Signalliste — nicht null.
+* `fetch` wird **nur** vom Scheduler gerufen, nie aus der Oberflaeche.
+* `complete` hat eine Vorgabe, die fehlschlaegt: nur lesend ist die Regel.
+* Eine Quelle ohne Meldung liefert eine leere Signalliste — nicht `None`.
+* `SyncContext` gibt Zugriff auf HTTP, Geheimnisse, `now` und den
+  Zeitzonenversatz. Keine Datenbank, kein Weg in die Oberflaeche.
 
-## 4 · Aktualität ist Teil der Daten
+### Warum der Zeitzonenversatz durchgereicht wird
 
-`SyncStand` hängt an jeder Übersicht und an der Startseite. Damit kann die App
-nie alte Zahlen als aktuell ausgeben. `SyncFehler` unterscheidet die Fälle, die
-unterschiedlich aussehen müssen:
+„Heute" ist lokal, nicht UTC. Ohne `tz_offset_minutes` kippte die Dringlichkeit
+einer Aufgabe um Mitternacht UTC — in Berlin also um zwei Uhr morgens.
 
-| Fehler | Anzeige |
+## 4 · Aktualitaet ist Teil der Daten
+
+`SyncState` haengt an jeder Karte. Damit kann die App nie alte Zahlen als
+aktuell ausgeben.
+
+| `SyncFault` | Anzeige |
 | --- | --- |
-| `KeinNetz` | stiller Graustich, kein Banner |
-| `AnmeldungAbgelaufen` | Banner mit Knopf — der PSD2-90-Tage-Fall |
-| `KontingentErschoepft` | Hinweis mit `wiederAb`, kein Wiederholungsversuch |
-| `Serverfehler`, `Unbekannt` | Hinweis in den Einstellungen, Backoff |
+| `Offline` | stiller Graustich, kein Banner |
+| `AuthExpired` | Banner mit Knopf |
+| `RateLimited` | Hinweis mit `retry_after`, kein Wiederholungsversuch |
+| `Misconfigured` | Hinweis; **nicht** im Takt wiederholt |
+| `Server`, `Unknown` | Hinweis, Backoff |
 
-## 5 · Abdeckungsprüfung
+`SyncFault::retryable()` steuert beides: ob der Scheduler es erneut versucht und
+ob das Banner einen Knopf bekommt.
 
-[`contracts/abdeckung.json`](../contracts/abdeckung.json) hält für jedes
-sichtbare Element der Mockups fest, aus welchen Feldern es kommt.
-`pruefe_abdeckung.py` liest die Kotlin-Quellen und prüft jeden Verweis:
+## 5 · Was der Kern nach aussen anbietet
 
-```
-$ python3 contracts/pruefe_abdeckung.py
-5 Kotlin-Dateien, 68 Typen
-71 Mockup-Elemente, 161 Feldverweise geprueft
+`Engine` ist die einzige Tuer. Jeder Tauri-Befehl ist eine Zeile Weiterleitung.
 
-OK - jede Information aus den Mockups hat ein Feld im Modell.
-```
+| Methode | Zweck |
+| --- | --- |
+| `dashboard()` | alles fuer den Startscreen, aus der Datenbank, ohne Netz |
+| `signals_of(source)` | die Detailseite |
+| `sync(force)` | `false` = was faellig ist, `true` = alles |
+| `act(action)` | fuehrt aus, was in Tory gehoert; gibt URLs zurueck |
+| `snooze`, `dismiss` | die lokalen Marken |
+| `config()`, `save_config()` | Speichern prueft und raeumt Geheimnisse auf |
+| `set_secret()`, `secret_names()` | hinein ja, heraus nur die Namen |
+| `begin_gmail_auth()`, `finish_gmail_auth()` | OAuth mit PKCE |
+| `brief()` | das Tagesbriefing |
 
-Der Sinn: Wird ein Mockup erweitert oder ein Feld umbenannt, fällt die Lücke
-sofort auf, statt erst beim Bauen des Screens. Gehört in die CI, sobald es eine gibt.
+`save_config` gibt eine Liste von Problemen zurueck. Leer heisst uebernommen —
+so bekommt die Oberflaeche ohne eigene Pruefregeln eine Rueckmeldung.
 
 ## Bewusst nicht im Modell
 
-* **Kein Volltext von Mails.** Nur Betreff und Auszug — für alles Weitere
-  öffnet Tory Gmail. Spart Speicher, Synchronisation und Risiko.
-* **Keine vollständige IBAN.** Nur `Konto.ibanEndung`, vier Stellen.
-* **Keine Schreiboperationen nach außen.** Kein Senden, kein Überweisen. Die
-  einzigen Schreibvorgänge sind lokal: Aufgaben, Reihenfolge, Stummschaltung.
-* **Kein Nutzerkonto, keine Geräte-Synchronisation.** Ein Telefon, eine Datenbank.
-
-## Offene Entscheidungen
-
-1. **`Geld` als Long-Cent** ist gesetzt. Offen ist, ob Fremdwährungen
-   überhaupt vorkommen — falls nicht, kann `waehrung` später entfallen.
-2. **Kategorien** (`Kategorie.schluessel`) brauchen einen festen Satz, sobald
-   das Geld-Modul kommt. Vorschlag: die zehn Kategorien der Budgetansicht,
-   Rest auf „Sonstiges".
-3. **`Termin.reisezeit`** braucht eine Routing-Quelle. Bis M4 bleibt das Feld
-   null, die UI zeigt den Ort dann ohne Fahrtzeit.
+* **Kein Volltext.** Von Mails Betreff und `snippet`, von Notizen die ersten
+  Zeilen. Fuer alles Weitere oeffnet Tory die Quelle.
+* **Keine Schreiboperationen ausser einer.** Abhaken bei Mindwtr. Sonst nichts.
+* **Kein Nutzerkonto, keine Geraete-Synchronisation.** Ein Telefon, eine
+  Datenbank.
+* **Kein Betrag, keine Waehrung.** Der fruehere Entwurf hatte ein Geld-Modul;
+  Bankanbindung steht nicht mehr auf dem Plan, und ein Feld ohne Quelle ist
+  Ballast.
