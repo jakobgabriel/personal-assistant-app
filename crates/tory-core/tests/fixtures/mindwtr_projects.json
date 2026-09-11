@@ -1,0 +1,9 @@
+{
+  "projects": [
+    { "id": "p-finanzen", "title": "Finanzen 2026", "status": "active", "color": "#3A4CA0", "order": 1, "tagIds": [], "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" },
+    { "id": "p-haus", "title": "Haus", "status": "active", "color": "#1B6B4C", "order": 2, "tagIds": [], "createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z" }
+  ],
+  "total": 2,
+  "limit": 200,
+  "offset": 0
+}

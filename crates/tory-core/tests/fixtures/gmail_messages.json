@@ -1,0 +1,42 @@
+[
+  {
+    "id": "msg-1",
+    "threadId": "thread-1",
+    "labelIds": ["UNREAD", "IMPORTANT", "INBOX"],
+    "snippet": "Bitte begleichen Sie den Betrag bis zum 25.09.2026.",
+    "internalDate": "1789030800000",
+    "payload": {
+      "headers": [
+        { "name": "From", "value": "\"Stadtwerke Nord\" <rechnung@stadtwerke.example>" },
+        { "name": "Subject", "value": "Rechnung 2026-0912 faellig" }
+      ]
+    }
+  },
+  {
+    "id": "msg-2",
+    "threadId": "thread-2",
+    "labelIds": ["UNREAD", "INBOX"],
+    "snippet": "Der Termin am Montag verschiebt sich auf 14 Uhr.",
+    "internalDate": "1789027200000",
+    "payload": {
+      "headers": [
+        { "name": "From", "value": "Anna Beispiel <anna@example.de>" },
+        { "name": "Subject", "value": "Termin verschoben" }
+      ]
+    }
+  },
+  {
+    "id": "msg-3",
+    "threadId": "thread-3",
+    "labelIds": ["INBOX"],
+    "snippet": "Die wichtigsten Meldungen der Woche im Ueberblick.",
+    "internalDate": "1788940800000",
+    "payload": {
+      "headers": [
+        { "name": "From", "value": "\"Fachblatt\" <news@fachblatt.example>" },
+        { "name": "Subject", "value": "Wochenrueckblick 37/2026" },
+        { "name": "List-Id", "value": "<news.fachblatt.example>" }
+      ]
+    }
+  }
+]

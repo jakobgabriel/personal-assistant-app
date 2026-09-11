@@ -1,0 +1,37 @@
+{
+  "list": [
+    {
+      "Id": 12,
+      "Position": "Data Engineer (IIoT)",
+      "Firma": { "Id": 3, "title": "Beispiel GmbH" },
+      "Status": "Beworben",
+      "Frist": "2026-09-08",
+      "Notiz": "Nachfassen, seit drei Wochen keine Antwort."
+    },
+    {
+      "Id": 13,
+      "Position": "IIoT Platform Engineer",
+      "Firma": { "Id": 4, "title": "Beispiel GmbH" },
+      "Status": "Interview",
+      "Frist": "2026-09-12",
+      "Notiz": "Technisches Gespraech vorbereiten."
+    },
+    {
+      "Id": 14,
+      "Position": "Lean Manager Produktion",
+      "Firma": { "Id": 5, "title": "Musterwerke AG" },
+      "Status": "Beworben",
+      "Frist": "2026-10-15",
+      "Notiz": null
+    },
+    {
+      "Id": 15,
+      "Position": "Werkstudent Digitalisierung",
+      "Firma": { "Id": 6, "title": "Alt AG" },
+      "Status": "Abgelehnt",
+      "Frist": "2026-08-01",
+      "Notiz": "Absage per Mail."
+    }
+  ],
+  "pageInfo": { "totalRows": 4, "page": 1, "pageSize": 100, "isFirstPage": true, "isLastPage": true }
+}
