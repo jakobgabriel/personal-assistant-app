@@ -114,6 +114,22 @@ uebertragen und oeffnen. Android fragt einmal nach der Erlaubnis, aus dieser
 Quelle zu installieren. Release-Signierung steht im Anhang von
 [`docs/integrationen.md`](docs/integrationen.md#anhang--release-signierung).
 
+> **Der Lauf braucht Actions-Minuten.** Dieses Repository ist privat, und
+> private Repositories rechnen jede Minute gegen das Kontingent des Kontos.
+> Ist es aufgebraucht, brechen Laeufe nach wenigen Sekunden ab — ohne Runner,
+> ohne Protokoll, ohne Fehlermeldung. Genau so verhalten sich die bisherigen
+> Laeufe, weshalb der Ablauf noch nie durchgelaufen ist.
+>
+> Abhilfe: unter *Settings → Billing* das Ausgabenlimit heraufsetzen, den
+> Monatswechsel abwarten, oder das Repository auf oeffentlich stellen —
+> oeffentliche Repositories bauen unbegrenzt und kostenlos.
+>
+> Geprueft ist der Ablauf, soweit das ohne Runner geht: `actionlint` samt
+> `shellcheck` laeuft sauber durch, die verwendeten Tauri-Schalter
+> (`android init --ci --skip-targets-install`, `android build --apk --debug
+> --target aarch64`) sind gegen die CLI abgeglichen, und
+> `scripts/android-manifest.mjs` ist gegen ein echtes Tauri-Manifest getestet.
+
 ### Android — lokal
 
 ```bash

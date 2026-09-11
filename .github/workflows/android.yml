@@ -168,7 +168,7 @@ jobs:
       # Bauergebnis, kein Quelltext, und haengt an der Tauri-Version.
       - name: Android-Projekt erzeugen
         working-directory: app
-        run: npm run tauri -- android init --skip-targets-install
+        run: npm run tauri -- android init --ci --skip-targets-install
 
       # Ohne diesen Schritt kaeme die Gmail-Anmeldung nicht zurueck.
       - name: Deep-Link eintragen
