@@ -2,100 +2,100 @@
 
 ## Problem
 
-Der Morgen-Rundlauf: Gmail öffnen, Kalender prüfen, DHL-App, Banking-App,
-Nachrichten-App, Notizen. Sechs bis acht Starts für eine Frage, die eine
-Antwort hat: *Was ist heute wichtig?*
+Der Morgen-Rundlauf: Gmail oeffnen, Mindwtr pruefen, zwei Obsidian-Vaults
+durchsehen, NocoDB aufrufen, drei Nachrichtenseiten. Sechs bis acht Starts fuer
+eine Frage, die eine Antwort hat: *Was ist heute wichtig?*
 
 Bestehende Aggregatoren scheitern daran, dass sie alles gleich laut anzeigen —
-sie ersetzen acht Feeds durch einen längeren.
+sie ersetzen acht Feeds durch einen laengeren.
 
 ## Leitidee: Signal vor Detail
 
 Jede angebundene Quelle liefert nicht ihren Inhalt, sondern ihre **Signale**:
-Dinge mit Termin, Betrag oder Handlungsbedarf.
+Dinge mit Termin, Frist oder Handlungsbedarf.
 
-* „DHL kommt heute 14–16 Uhr" ist ein Signal.
-* „Sie haben 214 E-Mails" ist keins.
+* „Bewerbungsfrist laeuft morgen ab" ist ein Signal.
+* „Du hast 214 E-Mails" ist keins.
 
-Der Startscreen zeigt maximal drei Signale, danach den Tag, danach die
-Domänenkarten. Alles Übrige liegt eine Ebene tiefer.
+Der Startscreen zeigt hoechstens drei Signale, danach die Quellenkarten, danach
+den Rest. Alles Weitere liegt eine Ebene tiefer — oder in der Quelle selbst.
 
 ## Drei Prinzipien
 
-1. **Ein Ereignismodell.** Mail, Sendung, Buchung, Termin und Aufgabe werden
-   intern derselbe Typ: `id, titel, untertitel, zeitpunkt, dringlichkeit,
-   quelle, aktion`. Der Startscreen sortiert nur noch — er kennt keine
-   Sonderfälle pro Domäne.
-2. **Offline zuerst.** Room ist die einzige Wahrheit auf dem Gerät. Die
-   Oberfläche liest nie direkt vom Netz; die App startet mit dem letzten Stand
+1. **Ein Ereignismodell.** Eine Obsidian-Checkbox, eine Mindwtr-Aufgabe, eine
+   NocoDB-Zeile, eine Mail und eine Schlagzeile werden intern derselbe Typ:
+   `Signal`. Der Startscreen sortiert nur noch — er kennt keine Sonderfaelle pro
+   Quelle.
+2. **Offline zuerst.** SQLite ist die einzige Wahrheit auf dem Geraet. Die
+   Oberflaeche liest nie direkt vom Netz; die App startet mit dem letzten Stand
    und synchronisiert im Hintergrund.
-3. **Lesend, nicht handelnd.** Tory führt keine Überweisungen aus und schreibt
-   keine Mails. Aktionen delegiert es an die Ziel-App (Gmail, Banking). Das
-   spart Lizenzfragen, Verantwortung und sehr viel Aufwand.
+3. **Lesend, mit genau einer Ausnahme.** Tory schreibt keine Mails und aendert
+   keine Notizen. Der einzige schreibende Aufruf nach aussen ist: eine
+   Mindwtr-Aufgabe abhaken. Alles andere delegiert es an die Zielanwendung.
 
-## Module
+## Quellen
 
-| Modul | Stufe | Inhalt | Quellen |
-| --- | --- | --- | --- |
-| Heute | Start | Signalzeile, Termine, fällige Aufgaben, Domänenkarten | alle |
-| Mail | MVP | Fokus-Postfach: ungelesen & wichtig, Newsletter/Rechnungen gebündelt | Gmail API, IMAP |
-| Aufgaben | MVP | Titel, optionales Datum, Liste. Aus Mail/Paket erzeugbar | lokal (Room) |
-| Kalender | MVP | Heute und morgen, mit Reisezeit zum nächsten Termin | CalendarContract |
-| News | MVP | Eigene Quellen als RSS, entdoppelt, auf 10 Schlagzeilen begrenzt | RSS/Atom |
-| Pakete | v1 | Sendungen aus Versandmails erkannt, Status per API, Zustellfenster als Signal | Mail-Parser, DHL/17TRACK |
-| Geld | v1 | Kontostände, kommende Abbuchungen, Monatsbudget, Umsätze nach Kategorie | PSD2-Aggregator oder FinTS |
-| Puls | v2 | Schritte, Schlaf, Trainings als eine Zeile Kontext | Health Connect |
-| Wetter & Weg | v2 | Regenwarnung, Störungen auf üblichen Strecken | Bright Sky (DWD), DB/HAFAS |
+| Quelle | Was daraus wird | Wie |
+| --- | --- | --- |
+| **Obsidian**, mehrere Vaults | Offene Checkboxen mit Frist, angepinnte Notizen | Ordner oder WebDAV |
+| **Mindwtr**, selbst gehostet | Aufgaben nach Status, Faelligkeit, Tagesfokus | REST unter `/v1` |
+| **NocoDB**, selbst gehostet | Beliebige Tabellen ueber eine Spaltenzuordnung | API v2, `xc-token` |
+| **Gmail** | Ungelesenes und Wichtiges je Suchausdruck | Gmail API, lesend |
+| **Nachrichten** | Schlagzeilen: regional, weltweit, Wetter | RSS/Atom/JSON Feed |
+
+Mehrere Instanzen sind der Normalfall, nicht die Ausnahme: zwei Vaults, drei
+NocoDB-Tabellen, fuenf Gmail-Suchen. Jede bekommt eine Kennung und erscheint als
+eigene Karte — oder, bei Feeds und Tabellen, als Zeile in einer gemeinsamen.
+
+Einrichtung im Einzelnen: [`integrationen.md`](integrationen.md).
 
 ## Aufbau des Startscreens
 
-1. **Gruß & Datum** — plus Sync-Stand, damit klar ist, wie alt die Zahlen sind.
-2. **Jetzt wichtig** — max. drei Signale, quellenübergreifend nach Dringlichkeit.
-3. **Heute** — Termine und fällige Aufgaben.
-4. **Domänen** — Mail, Pakete, Geld, News als Karten in frei wählbarer Reihenfolge.
+1. **Gruss und Datum** — plus Banner, falls eine Quelle Aufmerksamkeit braucht.
+2. **Tagesbriefing** — zwei Saetze vom Modell, falls AI an ist.
+3. **Jetzt wichtig** — hoechstens drei Signale, quellenuebergreifend sortiert.
+4. **Quellen** — eine Karte je Quelle, mit Kennzahl und Sync-Stand.
+5. **Weiter** — alles Uebrige in derselben Sortierung.
 
-### Navigation
+Jede Signalzeile laesst sich antippen (springt in die Quelle), spaeter stellen
+(3 h oder bis morgen) oder abhaken. „Spaeter" und „abgehakt" ueberleben den
+naechsten Sync.
 
-* **Reiter:** Heute · News · Mail · Geld · Mehr (Pakete, Aufgaben, Puls, Einstellungen)
-* **Widget:** dieselbe Signalzeile als Glance-Widget, 4×1 und 4×2
-* **Gedrückt halten:** je Karte erledigt / später / in Aufgabe verwandeln / Quelle öffnen
-* **Morgenbrief:** eine Benachrichtigung um 7:30 mit genau den Signalen des Tages
+## Dringlichkeit: eine Regel fuer alle
 
-## Integrationen und ihre Haken
+| Faelligkeit | Stufe |
+| --- | --- |
+| ueberfaellig oder heute | **Jetzt** (`Critical`) |
+| morgen | **Heute** (`High`) |
+| in 2–3 Tagen | **Bald** (`Normal`) |
+| spaeter, oder ohne Datum | **Info** |
 
-| Bereich | Quelle | Machbarkeit | Haken |
-| --- | --- | --- | --- |
-| Mail | Gmail API (read-only) | einfach | Eigenes Google-Cloud-Projekt, du als Testnutzer — keine App-Prüfung nötig |
-| Mail (weitere) | IMAP | einfach | IDLE kostet Akku; besser alle 15 Minuten abfragen |
-| Kalender | CalendarContract | einfach | Nutzt die Konten, die auf dem Gerät schon eingerichtet sind |
-| News | RSS/Atom | einfach | tagesschau, heise, Golem liefern vollständige Feeds |
-| Wetter | Bright Sky (DWD) | einfach | Offen, kein Schlüssel, sehr gute Regenprognose für DE |
-| Aufgaben | Room, optional Google Tasks | einfach | Erst lokal, Sync später |
-| Pakete · Erkennung | Versandmails | mittel | Pro Händler ein Erkennungsmuster, muss gepflegt werden |
-| Pakete · Status | DHL API, 17TRACK/AfterShip | mittel | DHL allein kostenlos; Aggregatoren mit knappen Freikontingenten |
-| Konten | PSD2 (GoCardless Bank Account Data) | mittel | Kostenlos, aber 90-Tage-Reconsent; Secrets gehören nicht in die App → Bridge |
-| Konten (Alt.) | FinTS/HBCI | mittel | Direkt zur Bank, braucht Produktregistrierung |
-| Puls | Health Connect | mittel | Samsung Health schreibt dorthin; direkter SDK-Zugang ist gesperrt |
-| Weg | DB/HAFAS | mittel | Nur für zwei, drei feste Strecken sinnvoll |
-| Überweisungen | — | nicht vorgesehen | Zahlungsauslösung braucht BaFin-Lizenz |
+Ausnahmen, die begruendet sind: eine Wetterwarnung ist `Hoch`, egal wann sie
+kam. Ein Newsletter bleibt `Info`, auch wenn die Gmail-Suche „Jetzt" sagt. Ein
+Mindwtr-Tagesfokus kommt auch ohne Datum durch.
 
 ## Datenschutz
 
-* Kein eigenes Cloud-Backend für Inhalte. Mails, Termine, Umsätze bleiben auf dem Gerät.
-* Keine Analytics, kein Crash-Reporting mit Inhalten.
-* Der Geld-Reiter liegt hinter Biometrie.
-* Datenexport als JSON, Löschen pro Quelle.
-* Einzige Ausnahme: die *Tory Bridge* für Bank-Zugänge (siehe `architektur.md`) —
-  sie hält Tokens, aber keine Umsätze.
+* Kein eigenes Backend. Alle Dienste sind bereits selbst gehostet.
+* Kein Analytics, kein Crash-Reporting.
+* Von Mails nur Betreff, Absender und Googles `snippet` — nie der Text.
+* Tokens und API-Schluessel liegen verschluesselt, getrennt von der
+  Konfiguration. Die Konfiguration ist damit weitergebbar.
+* Die AI-Schicht sendet standardmaessig nur Titel und Zeiten. Wer Inhalte
+  senden will, schaltet das ausdruecklich ein.
 
 ## Reihenfolge
 
-| Stufe | Dauer | Ergebnis |
+| Stufe | Ergebnis | Stand |
 | --- | --- | --- |
-| M0 · Gerüst | 1 Woche | Projekt, Modulschnitt, Theme, Startscreen mit Beispieldaten |
-| M1 · Erste echte Daten | 2 Wochen | Kalender, Aufgaben, News, Gmail-Fokus — ersetzt vier App-Starts |
-| M2 · Pakete & Widget | 1–2 Wochen | Versandmails erkennen, Status abrufen, erstes Homescreen-Widget |
-| M3 · Geld | 2 Wochen | Bridge, Konten, Kategorisierung, Budget, Biometrie |
-| M4 · Feinschliff | offen | Puls, Wetter, Wege, Morgenbrief als Routine, Export |
+| M0 · Kern | Modell, SQLite, Secret-Store, Takt, Connector-Vertrag | **fertig** |
+| M1 · Quellen | Obsidian, Mindwtr, NocoDB, Gmail, Feeds — je mit Tests gegen echte Antworten | **fertig** |
+| M2 · Oberflaeche | Startscreen, Detailseiten, vollstaendige Einstellungen, zwei Designrichtungen | **fertig** |
+| M3 · Android | `tauri android init`, Signierung, Deep Link im Manifest, Geraetetest | offen |
+| M4 · Morgenbrief | Benachrichtigung um 07:30 statt Knopf | offen |
+| M5 · Widget | Signalzeile auf dem Homescreen, liest dieselbe Datenbank | offen |
+
+AI laeuft quer dazu: das Tagesbriefing ist der erste Schritt und da; was folgt,
+steht in [`roadmap-ki.md`](roadmap-ki.md).
 
 Jede Stufe endet mit etwas Benutzbarem — nicht mit einem halben Feature.
