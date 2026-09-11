@@ -1,0 +1,240 @@
+# Baut das Android-APK.
+#
+# Warum in der CI und nicht lokal: `tauri android build` braucht Android-SDK und
+# NDK — zusammen mehrere Gigabyte. Der GitHub-Runner bringt beides mit, und das
+# Ergebnis ist ein APK, das sich aus der Artefaktliste herunterladen und direkt
+# auf das Telefon schieben laesst.
+#
+# Gebaut wird ein **Debug-APK**. Das ist Absicht, nicht Bequemlichkeit:
+#
+#   * Es ist mit dem Debug-Schluessel signiert und damit sofort installierbar.
+#     Ein Release-APK waere ohne eigenen Keystore unsigniert und liesse sich
+#     nicht installieren.
+#   * `usesCleartextTraffic` ist darin an. Selbst gehostete Dienste im eigenen
+#     Netz laufen oft ueber `http://192.168.…` — ein Release-Build blockiert das.
+#
+# Release-Signierung ist in docs/integrationen.md beschrieben; sie braucht einen
+# Keystore als Secret und ist bewusst nicht halb eingebaut.
+
+name: Android-APK
+
+on:
+  push:
+    branches: ["main", "claude/**"]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "mockups/**"
+      - "archiv/**"
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      abis:
+        description: "Welche Prozessorarchitekturen"
+        type: choice
+        default: "aarch64"
+        options:
+          - "aarch64"   # jedes Telefon seit ~2016, inkl. Samsung Galaxy
+          - "alle"      # zusaetzlich armv7, x86, x86_64 (Emulator, Altgeraete)
+
+# Ein laufender Build pro Branch reicht; ein neuer Push macht den alten hinfaellig.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Ein Emoji-Fehlschlag im Log ist aergerlicher als ein paar Byte mehr.
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Schnelles Tor: die Tests laufen in unter einer Minute, der Android-Build in
+  # zehn. Erst pruefen, dann bauen.
+  pruefen:
+    name: Tests und Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # `cargo clippy --all-targets` schliesst die Tauri-Schale ein, und die
+      # braucht webkit2gtk. Ohne diesen Schritt pruefte das Tor nur den Kern.
+      - name: Systempakete fuer Tauri
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Kern testen
+        run: cargo test -p tory-core
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Abhaengigkeiten
+        working-directory: app
+        run: npm ci
+
+      - name: Typen pruefen
+        working-directory: app
+        run: npm run check
+
+  apk:
+    name: APK bauen
+    needs: pruefen
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Rust mit Android-Zielen
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: >-
+            aarch64-linux-android,
+            armv7-linux-androideabi,
+            i686-linux-android,
+            x86_64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          # Sonst teilen sich Host- und Android-Build denselben Cache-Schluessel.
+          key: android
+
+      # Der Runner bringt ein NDK mit. Es zu benutzen spart einen Download von
+      # ueber einem Gigabyte; nur wenn keins da ist, wird eines nachgeladen.
+      - name: NDK bestimmen
+        run: |
+          set -euo pipefail
+          for kandidat in "${ANDROID_NDK_LATEST_HOME:-}" "${ANDROID_NDK_HOME:-}" "${ANDROID_NDK_ROOT:-}"; do
+            if [ -n "$kandidat" ] && [ -d "$kandidat" ]; then
+              echo "NDK_HOME=$kandidat" >> "$GITHUB_ENV"
+              echo "NDK gefunden: $kandidat"
+              exit 0
+            fi
+          done
+          echo "Kein NDK vorinstalliert, lade nach."
+          sdkmanager --install "ndk;27.2.12479018"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Abhaengigkeiten
+        working-directory: app
+        run: npm ci
+
+      # Erzeugt gen/android. Der Ordner liegt nicht im Repository: er ist
+      # Bauergebnis, kein Quelltext, und haengt an der Tauri-Version.
+      - name: Android-Projekt erzeugen
+        working-directory: app
+        run: npm run tauri -- android init --skip-targets-install
+
+      # Ohne diesen Schritt kaeme die Gmail-Anmeldung nicht zurueck.
+      - name: Deep-Link eintragen
+        working-directory: app
+        run: |
+          node scripts/android-manifest.mjs
+          node scripts/android-manifest.mjs --check
+
+      - name: APK bauen
+        working-directory: app
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.abis }}" = "alle" ]; then
+            npm run tauri -- android build --apk --debug
+          else
+            npm run tauri -- android build --apk --debug --target aarch64
+          fi
+
+      - name: APK einsammeln
+        id: sammeln
+        run: |
+          set -euo pipefail
+          mkdir -p artefakt
+          # Der Ausgabepfad haengt davon ab, ob fuer eine oder alle
+          # Architekturen gebaut wurde (arm64/ vs. universal/).
+          mapfile -t gefunden < <(find app/src-tauri/gen/android -name "*.apk" -type f | sort)
+          if [ "${#gefunden[@]}" -eq 0 ]; then
+            echo "::error::Kein APK erzeugt."
+            find app/src-tauri/gen/android -name "*.ap*" -o -name "*.aab" | head -20
+            exit 1
+          fi
+          for pfad in "${gefunden[@]}"; do
+            echo "gefunden: $pfad ($(du -h "$pfad" | cut -f1))"
+            cp "$pfad" artefakt/
+          done
+          echo "anzahl=${#gefunden[@]}" >> "$GITHUB_OUTPUT"
+
+      # Belegt, dass das APK wirklich den Rueckkanal traegt — ein Build, der
+      # durchlaeuft, aber ohne Deep Link ausgeliefert wird, waere schlimmer als
+      # ein roter Lauf.
+      - name: APK gegenpruefen
+        run: |
+          set -euo pipefail
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -1)"
+          apk="$(find artefakt -name '*.apk' | head -1)"
+          echo "Pruefe $apk mit $aapt"
+          dump="$("$aapt" dump badging "$apk")"
+          echo "$dump" | grep -E "^package:|^application-label:|^sdkVersion:|native-code" || true
+          echo "$dump" | grep -q "package: name='de.tory.app'" \
+            || { echo "::error::Falscher Paketname."; exit 1; }
+
+          # Das Manifest im APK ist binaer. `dump xmltree` dekodiert es; nur so
+          # laesst sich das Attribut `android:scheme` wirklich nachweisen —
+          # ein `strings`-Griff faende schon den Paketnamen und ginge immer durch.
+          baum="$("$aapt" dump xmltree "$apk" --file AndroidManifest.xml)"
+          echo "$baum" | grep -q 'scheme' \
+            || { echo "::error::Kein einziges scheme-Attribut im Manifest."; exit 1; }
+          echo "$baum" | grep -A1 'scheme' | grep -q 'de.tory.app' \
+            || { echo "::error::Deep-Link de.tory.app:// fehlt im gebauten APK."
+                 echo "$baum" | grep -B4 -A4 'scheme' || true; exit 1; }
+          echo "$baum" | grep -q 'android.intent.action.VIEW' \
+            || { echo "::error::VIEW-Intent fehlt — Rueckkanal unvollstaendig."; exit 1; }
+          echo "APK traegt Paketnamen, VIEW-Intent und Deep-Link-Schema."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tory-apk-${{ github.sha }}
+          path: artefakt/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "### Tory-APK"
+            echo
+            echo "${{ steps.sammeln.outputs.anzahl }} APK gebaut (Debug-Signatur, installierbar)."
+            echo
+            for pfad in artefakt/*.apk; do
+              echo "* \`$(basename "$pfad")\` — $(du -h "$pfad" | cut -f1)"
+            done
+            echo
+            echo "Herunterladen unter *Artifacts*, dann auf dem Telefon oeffnen."
+            echo "Installation aus unbekannter Quelle muss dafuer erlaubt sein."
+          } >> "$GITHUB_STEP_SUMMARY"
