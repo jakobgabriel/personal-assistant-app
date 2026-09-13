@@ -112,11 +112,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Ohne `cache: gradle`: die Action sucht beim Einrichten nach
+      # Gradle-Dateien, um daraus ihren Cache-Schluessel zu bilden — und findet
+      # keine, weil `gen/android` erst weiter unten entsteht. Sie bricht dann
+      # mit "No file matched" ab. Zu cachen gaebe es zu diesem Zeitpunkt auch
+      # nichts; die Zeit dieses Laufs geht ohnehin in den Rust-Teil.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
 
       - uses: actions/setup-node@v4
         with:
