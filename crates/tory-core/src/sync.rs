@@ -138,8 +138,10 @@ mod tests {
         Config {
             mindwtr: vec![MindwtrSource {
                 common: SourceCommon::new("haupt", "Mindwtr", Cadence::minutes(15)),
-                base_url: "https://m.example.de".into(),
-                token_key: "mindwtr.haupt.token".into(),
+                access: crate::config::MindwtrAccess::Cloud {
+                    base_url: "https://m.example.de".into(),
+                    token_key: "mindwtr.haupt.token".into(),
+                },
                 statuses: vec!["next".into()],
                 include_undated: false,
                 horizon_days: 7,

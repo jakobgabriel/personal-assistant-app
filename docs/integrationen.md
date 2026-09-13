@@ -66,7 +66,23 @@ Angebunden wird der **`mindwtr-cloud`-Dienst** aus dem Docker-Stack, nicht die
 lokale API der Desktop-App: die bindet auf `127.0.0.1` und ist vom Telefon aus
 nicht erreichbar.
 
-### Server
+Mindwtr synchronisiert auf zwei Wegen, und Tory liest beide. Welcher gilt,
+steht in den Einstellungen unter *Zugriff*.
+
+| | Cloud-Dienst | WebDAV-Datei |
+| --- | --- | --- |
+| Was | REST unter `/v1` | ein `GET` auf die `data.json` |
+| Anmeldung | Bearer-Token | Benutzername und Passwort |
+| Abhaken | ja | **nein** |
+| Wann sinnvoll | der Docker-Stack laeuft ohnehin | die App synchronisiert schon ueber Nextcloud & Co. |
+
+Warum WebDAV nur liest: Abhaken hiesse, die ganze Datei zurueckzuschreiben — mit
+Revisionszaehlern, Grabsteinen und Konfliktabgleich gegen ein Geraet, das gerade
+dasselbe tut. Mindwtr betreibt dafuer eine eigene Absicherung; die nachzubauen,
+um eine Checkbox zu setzen, waere der sichere Weg, Aufgaben zu verlieren. In der
+App sind Signale aus einer WebDAV-Quelle deshalb gar nicht erst abhakbar.
+
+### Weg A: Cloud-Dienst
 
 ```dotenv
 # .env neben der compose.yaml
@@ -89,6 +105,25 @@ Die REST-Schnittstelle liegt dann unter `http://HOST:8787/v1`.
 | Abhaken | `POST /v1/tasks/{id}/complete` |
 
 Pro konfiguriertem Status ein Aufruf — `status` nimmt nur einen Wert.
+
+### Weg B: WebDAV-Datei
+
+In Mindwtr unter *Sync → WebDAV* einrichten; die App legt dort eine `data.json`
+ab. Genau auf diese Datei zeigt Tory — nicht auf den Ordner.
+
+| Feld in Tory | Beispiel |
+| --- | --- |
+| URL der data.json | `https://cloud.example.de/remote.php/dav/files/jakob/Mindwtr/data.json` |
+| Benutzername | `jakob` |
+| Passwort | bei Nextcloud ein **App-Passwort** |
+
+Zwei Faelle, die Tory vorab abfaengt statt sie als Parser-Fehler durchzureichen:
+
+* **Die URL endet auf `.enc.json`.** Das ist die Ende-zu-Ende-verschluesselte
+  Fassung. Ohne den Geraeteschluessel ist daraus nichts zu holen — entweder die
+  Sync-Verschluesselung abschalten oder den Cloud-Dienst nehmen.
+* **Die URL zeigt auf einen Ordner.** Dann kommt HTML statt JSON zurueck, und
+  die Meldung sagt genau das.
 
 ### Einstellungen
 

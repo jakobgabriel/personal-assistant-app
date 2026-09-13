@@ -9,7 +9,7 @@ Angebunden sind, alle frei konfigurierbar und in mehreren Instanzen:
 | Quelle | Woher | Was daraus wird |
 | --- | --- | --- |
 | **Obsidian** — beliebig viele Vaults | Ordner oder WebDAV | offene Checkboxen mit Frist, angepinnte Notizen |
-| **Mindwtr** — selbst gehostet | REST unter `/v1` | Aufgaben nach Status, Faelligkeit, Tagesfokus |
+| **Mindwtr** — selbst gehostet | REST unter `/v1` **oder** die `data.json` des WebDAV-Syncs | Aufgaben nach Status, Faelligkeit, Tagesfokus |
 | **NocoDB** — selbst gehostet | API v2, `xc-token` | beliebige Tabellen ueber eine Spaltenzuordnung |
 | **Gmail** | Gmail API, lesend | Ungelesenes je Suchausdruck |
 | **Nachrichten** | RSS / Atom / JSON Feed | regional, weltweit, Wetter |
@@ -138,6 +138,20 @@ Zum Installieren: Artefakt herunterladen, entpacken, die `.apk` auf das Telefon
 uebertragen und oeffnen. Android fragt einmal nach der Erlaubnis, aus dieser
 Quelle zu installieren. Release-Signierung steht im Anhang von
 [`docs/integrationen.md`](docs/integrationen.md#anhang--release-signierung).
+
+**Zur Groesse.** Ein unveraendertes Debug-Profil packt die vollstaendigen
+DWARF-Symbole mit ins APK; aus rund neun Megabyte Code werden so dreihundert.
+Der CI-Lauf setzt deshalb drei Cargo-Schalter (`DEBUG=false`, `STRIP=symbols`,
+`OPT_LEVEL=2`) — das APK bleibt debug-signiert und damit installierbar, traegt
+aber keine Symbole mehr und laeuft optimiert. Lokal aendert sich nichts: wer
+hier entwickelt, behaelt Symbole und schnelles Uebersetzen.
+
+Zum Vergleich, dieselbe Binaerdatei fuer den Desktop:
+
+| Bauart | Groesse |
+| --- | --- |
+| `cargo build` (Debug, mit Symbolen) | 286 MB |
+| `cargo build --release` | **9,1 MB** |
 
 > **Der Lauf braucht Actions-Minuten.** Dieses Repository ist privat, und
 > private Repositories rechnen jede Minute gegen das Kontingent des Kontos.

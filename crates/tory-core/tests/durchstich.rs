@@ -16,8 +16,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use tory_core::config::{
-    Cadence, Config, Feed, FeedTopic, FeedsSource, MindwtrSource, NocodbSource, NocodbTableMap,
-    SourceCommon,
+    Cadence, Config, Feed, FeedTopic, FeedsSource, MindwtrAccess, MindwtrSource, NocodbSource,
+    NocodbTableMap, SourceCommon,
 };
 use tory_core::engine::Engine;
 
@@ -108,14 +108,28 @@ fn bedienen(mut stream: TcpStream, protokoll: Protokoll) {
     });
 
     let (typ, koerper) = antwort(&pfad, &query);
+    // Alles unterhalb von /dav/, das nicht genau getroffen wurde, ist ein 404 —
+    // inklusive der Ordner-URL ohne abschliessenden Schraegstrich.
+    let (status, typ, koerper) = if pfad.starts_with("/dav/") && koerper == "{}" {
+        (404, "text/html", APACHE_404.to_string())
+    } else {
+        (200, typ, koerper)
+    };
     let kopf = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: {typ}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status} {}\r\nContent-Type: {typ}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        if status == 200 { "OK" } else { "Not Found" },
         koerper.len()
     );
     let _ = stream.write_all(kopf.as_bytes());
     let _ = stream.write_all(koerper.as_bytes());
     let _ = stream.flush();
 }
+
+/// Apaches Standard-404 — genau die Seite, die in der App als Banner landete.
+const APACHE_404: &str = r#"<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head> <title>404 Not Found</title></head><body>
+<h1>Not Found</h1> <p>The requested URL was not found on this server.</p>
+</body></html>"#;
 
 fn antwort(pfad: &str, query: &str) -> (&'static str, String) {
     match pfad {
@@ -135,6 +149,16 @@ fn antwort(pfad: &str, query: &str) -> (&'static str, String) {
             ("application/json", include_str!("fixtures/nocodb_records.json").to_string())
         }
         "/rss" => ("application/rss+xml", include_str!("fixtures/feed_rss2.xml").to_string()),
+        // Die Datei, die Mindwtrs WebDAV-Sync ablegt.
+        "/dav/Mindwtr/data.json" => {
+            ("application/json", include_str!("fixtures/mindwtr_data.json").to_string())
+        }
+        // Ein Ordner liefert bei den meisten Servern eine HTML-Auflistung.
+        "/dav/Mindwtr/" => ("text/html", "<html><body>Index of /dav</body></html>".to_string()),
+        // Der Vault. Auf den Schraegstrich wird bestanden — so verhaelt sich
+        // mod_dav, und genau daran scheiterte die Anbindung auf dem Telefon.
+        "/dav/Vault/" => ("application/xml", vault_propfind()),
+        "/dav/Vault/Notiz.md" => ("text/markdown", VAULT_NOTIZ.to_string()),
         _ => ("application/json", "{}".to_string()),
     }
 }
@@ -143,8 +167,10 @@ fn konfiguration(basis: &str) -> Config {
     Config {
         mindwtr: vec![MindwtrSource {
             common: SourceCommon::new("haupt", "Mindwtr", Cadence::minutes(15)),
-            base_url: basis.to_string(),
-            token_key: "mindwtr.haupt.token".into(),
+            access: MindwtrAccess::Cloud {
+                base_url: basis.to_string(),
+                token_key: "mindwtr.haupt.token".into(),
+            },
             statuses: vec!["inbox".into(), "next".into()],
             include_undated: false,
             horizon_days: 7,
@@ -332,6 +358,176 @@ async fn wegwischen_ueberlebt_den_naechsten_sync() {
     // Dieselben Zeilen kommen beim naechsten Sync wieder — die Marke bleibt.
     engine.sync(true).await.unwrap();
     assert_eq!(engine.signals_of("nocodb:haupt").await.unwrap().len(), 2);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+
+#[tokio::test]
+async fn mindwtr_ueber_webdav_liest_dieselbe_aufgabenliste() {
+    let server = Testserver::starten();
+    let dir = verzeichnis("webdav");
+    let engine = Engine::open(&dir).unwrap();
+    engine.set_tz_offset(120).await;
+
+    let mut config = konfiguration(&server.basis);
+    config.mindwtr[0].access = MindwtrAccess::Webdav {
+        url: format!("{}/dav/Mindwtr/data.json", server.basis),
+        username: "jakob".into(),
+        password_key: "mindwtr.haupt.webdav".into(),
+    };
+    // Die anderen Quellen stoeren hier nur.
+    config.nocodb.clear();
+    config.feeds.clear();
+    assert!(engine.save_config(config).await.unwrap().is_empty());
+    engine.set_secret("mindwtr.haupt.webdav", "geheim").await.unwrap();
+
+    let bericht = engine.sync(true).await.unwrap();
+    assert!(bericht.failed.is_empty(), "{:?}", bericht.failed);
+
+    let signale = engine.signals_of("mindwtr:haupt").await.unwrap();
+    assert!(!signale.is_empty(), "nichts gelesen");
+    assert!(
+        signale.iter().all(|s| !s.completable),
+        "ueber WebDAV darf nichts abhakbar sein"
+    );
+
+    // Und die Anfrage trug eine Basic-Anmeldung, keinen Bearer.
+    let anfrage = server.fand("/dav/Mindwtr/data.json").expect("Datei nicht geholt");
+    let auth = anfrage.kopfzeilen.get("authorization").expect("keine Anmeldung");
+    assert!(auth.starts_with("Basic "), "{auth}");
+    assert!(server.fand("/v1/tasks").is_none(), "die REST-Schnittstelle wurde nicht angefasst");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn ein_ordner_statt_der_datei_wird_erklaert() {
+    let server = Testserver::starten();
+    let dir = verzeichnis("webdav-ordner");
+    let engine = Engine::open(&dir).unwrap();
+
+    let mut config = konfiguration(&server.basis);
+    config.mindwtr[0].access = MindwtrAccess::Webdav {
+        // Endet auf .json, damit die Konfigurationspruefung sie durchlaesst und
+        // der Fehler tatsaechlich erst beim Lesen auftritt.
+        url: format!("{}/dav/Mindwtr/data.json", server.basis),
+        username: "jakob".into(),
+        password_key: "mindwtr.haupt.webdav".into(),
+    };
+    config.nocodb.clear();
+    config.feeds.clear();
+    engine.save_config(config).await.unwrap();
+    // Kein Passwort hinterlegt: das muss als Konfigurationsfehler ankommen.
+    let bericht = engine.sync(true).await.unwrap();
+    assert_eq!(bericht.failed.len(), 1);
+    assert!(bericht.failed[0].message.contains("Konfiguration"), "{:?}", bericht.failed[0]);
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+
+/// Eine PROPFIND-Antwort mit einer Notiz darin.
+fn vault_propfind() -> String {
+    r#"<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/dav/Vault/</d:href>
+    <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop>
+    <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/dav/Vault/Notiz.md</d:href>
+    <d:propstat><d:prop><d:resourcetype/>
+    <d:getlastmodified>Fri, 11 Sep 2026 06:00:00 GMT</d:getlastmodified></d:prop>
+    <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+  </d:response>
+</d:multistatus>"#
+        .to_string()
+}
+
+const VAULT_NOTIZ: &str = "# Haus\n- [ ] Dach pruefen \u{1F4C5} 2099-01-01\n";
+
+#[tokio::test]
+async fn obsidian_ueber_webdav_trifft_den_ordner_mit_schraegstrich() {
+    use tory_core::config::{ObsidianSource, VaultAccess};
+
+    let server = Testserver::starten();
+    let dir = verzeichnis("vault-webdav");
+    let engine = Engine::open(&dir).unwrap();
+    engine.set_tz_offset(120).await;
+
+    let config = Config {
+        obsidian: vec![ObsidianSource {
+            common: SourceCommon::new("privat", "Vault 1", Cadence::minutes(30)),
+            vault_name: "Privat".into(),
+            // Bewusst **ohne** abschliessenden Schraegstrich eingetragen — so
+            // gibt man eine Adresse ein, und Tory muss den Rest richtig machen.
+            access: VaultAccess::Webdav {
+                base_url: format!("{}/dav/Vault", server.basis),
+                username: "jakob".into(),
+                password_key: "obsidian.privat.webdav".into(),
+            },
+            include_folders: Vec::new(),
+            exclude_folders: vec![".obsidian".into()],
+            read_tasks: true,
+            pinned_tags: Vec::new(),
+            scan_limit: 100,
+        }],
+        ..Config::default()
+    };
+    assert!(engine.save_config(config).await.unwrap().is_empty());
+    engine.set_secret("obsidian.privat.webdav", "geheim").await.unwrap();
+
+    let bericht = engine.sync(true).await.unwrap();
+    assert!(bericht.failed.is_empty(), "{:?}", bericht.failed);
+
+    let signale = engine.signals_of("obsidian:privat").await.unwrap();
+    assert_eq!(signale.len(), 1, "die Aufgabe aus der Notiz");
+    assert!(signale[0].title.contains("Dach"));
+
+    // Angefragt wurde die Ordner-URL mit Schraegstrich, nicht ohne.
+    assert!(server.fand("/dav/Vault/").is_some(), "Ordner nicht mit / angefragt");
+    assert!(server.fand("/dav/Vault").is_none(), "ohne / haette der Server 404 gesagt");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[tokio::test]
+async fn eine_html_fehlerseite_landet_nicht_im_banner() {
+    use tory_core::config::{ObsidianSource, VaultAccess};
+
+    let server = Testserver::starten();
+    let dir = verzeichnis("vault-404");
+    let engine = Engine::open(&dir).unwrap();
+
+    let config = Config {
+        obsidian: vec![ObsidianSource {
+            common: SourceCommon::new("privat", "Vault 1", Cadence::minutes(30)),
+            vault_name: "Privat".into(),
+            access: VaultAccess::Webdav {
+                base_url: format!("{}/dav/GibtEsNicht", server.basis),
+                username: "jakob".into(),
+                password_key: "obsidian.privat.webdav".into(),
+            },
+            include_folders: Vec::new(),
+            exclude_folders: Vec::new(),
+            read_tasks: true,
+            pinned_tags: Vec::new(),
+            scan_limit: 100,
+        }],
+        ..Config::default()
+    };
+    engine.save_config(config).await.unwrap();
+    engine.set_secret("obsidian.privat.webdav", "geheim").await.unwrap();
+    engine.sync(true).await.unwrap();
+
+    let dash = engine.dashboard().await.unwrap();
+    let banner = dash.alerts.iter().find(|a| a.source.id() == "obsidian:privat").unwrap();
+    assert!(!banner.message.contains('<'), "kein Markup im Banner: {}", banner.message);
+    assert!(!banner.message.contains("DOCTYPE"), "{}", banner.message);
+    assert!(banner.message.contains("404 Not Found"), "die Aussage bleibt: {}", banner.message);
+    assert!(banner.message.contains("remote.php/dav"), "mit Hinweis: {}", banner.message);
 
     let _ = std::fs::remove_dir_all(&dir);
 }

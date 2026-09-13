@@ -139,9 +139,12 @@ export interface ObsidianSource extends SourceCommon {
   scan_limit: number;
 }
 
+export type MindwtrAccess =
+  | { kind: "cloud"; base_url: string; token_key: string }
+  | { kind: "webdav"; url: string; username: string; password_key: string };
+
 export interface MindwtrSource extends SourceCommon {
-  base_url: string;
-  token_key: string;
+  access: MindwtrAccess;
   statuses: string[];
   include_undated: boolean;
   horizon_days: number;

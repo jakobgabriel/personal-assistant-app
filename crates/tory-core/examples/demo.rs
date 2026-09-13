@@ -25,8 +25,8 @@ use std::path::{Path, PathBuf};
 
 use chrono::{Duration, Local, Utc};
 use tory_core::config::{
-    Cadence, Config, DashboardConfig, Feed, FeedTopic, FeedsSource, MindwtrSource, NocodbSource,
-    NocodbTableMap, ObsidianSource, SourceCommon, VaultAccess,
+    Cadence, Config, DashboardConfig, Feed, FeedTopic, FeedsSource, MindwtrAccess, MindwtrSource,
+    NocodbSource, NocodbTableMap, ObsidianSource, SourceCommon, VaultAccess,
 };
 use tory_core::secrets::SecretStore;
 
@@ -126,8 +126,10 @@ fn konfiguration_schreiben(daten: &Path, vault: &Path, basis: &str) -> Result<()
         }],
         mindwtr: vec![MindwtrSource {
             common: SourceCommon { order: 1, ..SourceCommon::new("haupt", "Mindwtr", Cadence::minutes(15)) },
-            base_url: basis.into(),
-            token_key: "mindwtr.haupt.token".into(),
+            access: MindwtrAccess::Cloud {
+                base_url: basis.into(),
+                token_key: "mindwtr.haupt.token".into(),
+            },
             statuses: vec!["inbox".into(), "next".into(), "waiting".into()],
             include_undated: false,
             horizon_days: 7,
@@ -213,6 +215,8 @@ fn antwort(pfad: &str, query: &str) -> (&'static str, String) {
         "/v1/tasks" if query.contains("status=inbox") => ("application/json", mindwtr_eingang()),
         "/v1/tasks" => ("application/json", r#"{"tasks":[],"total":0}"#.into()),
         "/v1/projects" => ("application/json", mindwtr_projekte()),
+        // Dieselben Daten als die Datei, die Mindwtrs WebDAV-Sync ablegt.
+        "/dav/Mindwtr/data.json" => ("application/json", mindwtr_datei()),
         "/api/v2/tables/mtbl_bewerbungen/records" => ("application/json", nocodb_zeilen()),
         "/rss/welt" => ("application/rss+xml", feed_welt()),
         "/rss/regional" => ("application/rss+xml", feed_regional()),
@@ -279,6 +283,36 @@ fn mindwtr_projekte() -> String {
      "createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z"}
     ],"total":2,"limit":200,"offset":0}"##
         .into()
+}
+
+/// Die `data.json` des WebDAV-Syncs: dieselben Werte, nur ohne Umschlag.
+///
+/// Zusammengesetzt aus denselben Quellen wie die REST-Antworten — so zeigt das
+/// Beispiel beide Wege mit identischem Inhalt, und ein Unterschied in der
+/// Anzeige waere ein echter Fehler und kein Datenartefakt.
+fn mindwtr_datei() -> String {
+    let aufgaben = |roh: &str| -> Vec<serde_json::Value> {
+        serde_json::from_str::<serde_json::Value>(roh)
+            .ok()
+            .and_then(|v| v.get("tasks").and_then(|t| t.as_array().cloned()))
+            .unwrap_or_default()
+    };
+    let mut tasks = aufgaben(&mindwtr_naechste());
+    tasks.extend(aufgaben(&mindwtr_eingang()));
+
+    let projects = serde_json::from_str::<serde_json::Value>(&mindwtr_projekte())
+        .ok()
+        .and_then(|v| v.get("projects").and_then(|p| p.as_array().cloned()))
+        .unwrap_or_default();
+
+    serde_json::json!({
+        "tasks": tasks,
+        "projects": projects,
+        "sections": [],
+        "areas": [],
+        "settings": {},
+    })
+    .to_string()
 }
 
 fn nocodb_zeilen() -> String {

@@ -24,7 +24,8 @@ use crate::config::{ObsidianSource, VaultAccess};
 use crate::error::{Error, Result};
 use crate::markdown::{parse_note, Note};
 use crate::model::{
-    Action, Harvest, Overview, OverviewLine, Signal, SourceKind, SourceRef, TimeKind, Urgency,
+    Action, Harvest, Overview, OverviewLine, Signal, SourceKind, SourceRef, SyncFault, TimeKind,
+    Urgency,
 };
 
 use super::{shorten, urgency_for_due, Connector, SyncContext};
@@ -134,8 +135,8 @@ pub async fn read_webdav(
         if !visited.insert(dir.clone()) {
             continue;
         }
-        let url = if dir.is_empty() { base.clone() } else { format!("{base}/{}", encode_path(&dir)) };
-        let response = crate::http::expect_ok(
+        let url = collection_url(&base, &dir);
+        let antwort = crate::http::expect_ok(
             ctx.http
                 .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &url)
                 .basic_auth(username, Some(password))
@@ -145,8 +146,14 @@ pub async fn read_webdav(
                 .send()
                 .await?,
         )
-        .await?;
-        let xml = response.text().await?;
+        .await;
+        // Der erste Aufruf ist der, bei dem eine falsche URL auffaellt. Ein
+        // nacktes "404" hilft dabei niemandem weiter.
+        let xml = match antwort {
+            Ok(r) => r.text().await?,
+            Err(err) if dir.is_empty() => return Err(mit_hinweis(err, &url)),
+            Err(err) => return Err(err),
+        };
 
         for entry in parse_propfind(&xml, &base) {
             let rel = if dir.is_empty() { entry.name.clone() } else { format!("{dir}/{}", entry.name) };
@@ -173,6 +180,33 @@ pub async fn read_webdav(
         }
     }
     Ok(files)
+}
+
+/// URL eines Ordners — **mit** abschliessendem Schraegstrich.
+///
+/// WebDAV unterscheidet Ordner und Dateien an genau diesem Zeichen. Ohne ihn
+/// antwortet Apaches mod_dav mit einer Umleitung und mancher Server schlicht
+/// mit 404; Nextcloud ist gnaediger, aber verlassen kann man sich darauf nicht.
+fn collection_url(base: &str, dir: &str) -> String {
+    if dir.is_empty() {
+        format!("{base}/")
+    } else {
+        format!("{base}/{}/", encode_path(dir))
+    }
+}
+
+/// Haengt an einen Fehler beim ersten PROPFIND das an, was ihn meistens erklaert.
+fn mit_hinweis(err: Error, url: &str) -> Error {
+    let SyncFault::Misconfigured { detail } = err.as_fault() else {
+        return err;
+    };
+    Error::Sync(SyncFault::Misconfigured {
+        detail: format!(
+            "{detail} Geprueft wurde {url} — die Adresse muss auf den Vault-Ordner selbst \
+             zeigen. Bei Nextcloud hat sie die Form \
+             https://SERVER/remote.php/dav/files/BENUTZER/Pfad/Zum/Vault",
+        ),
+    })
 }
 
 const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -693,6 +727,33 @@ mod tests {
         let schief = parse_http_date("Mon, 11 Sep 2026 06:00:00 GMT").unwrap();
         assert_eq!(richtig, schief);
         assert_eq!(parse_http_date("gar kein Datum"), None);
+    }
+
+    #[test]
+    fn ordner_urls_enden_auf_einem_schraegstrich() {
+        let base = "https://cloud.example.de/remote.php/dav/files/jakob/Vault";
+        // WebDAV unterscheidet Ordner und Datei an genau diesem Zeichen; ohne
+        // ihn antworten manche Server mit 404 statt mit der Ordnerliste.
+        assert_eq!(collection_url(base, ""), format!("{base}/"));
+        assert_eq!(collection_url(base, "Projekte"), format!("{base}/Projekte/"));
+        assert_eq!(
+            collection_url(base, "Projekte/Haus Nord"),
+            format!("{base}/Projekte/Haus%20Nord/")
+        );
+    }
+
+    #[test]
+    fn der_erste_fehlschlag_nennt_die_gepruefte_adresse() {
+        let err = Error::Sync(SyncFault::Misconfigured { detail: "Nicht gefunden (404).".into() });
+        let text = mit_hinweis(err, "https://cloud.example.de/Vault/").to_string();
+        assert!(text.contains("https://cloud.example.de/Vault/"), "{text}");
+        assert!(text.contains("remote.php/dav"), "nennt die uebliche Form: {text}");
+    }
+
+    #[test]
+    fn andere_fehler_bekommen_keinen_webdav_hinweis() {
+        let err = Error::Sync(SyncFault::Offline);
+        assert!(!mit_hinweis(err, "https://x/").to_string().contains("remote.php"));
     }
 
     #[test]

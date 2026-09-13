@@ -21,8 +21,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Deserialize;
 
-use crate::config::MindwtrSource;
-use crate::error::Result;
+use crate::config::{MindwtrAccess, MindwtrSource};
+use crate::error::{Error, Result};
 use crate::http::{expect_ok, join};
 use crate::model::{
     Action, Harvest, Overview, OverviewLine, Signal, SourceKind, SourceRef, TimeKind, Urgency,
@@ -81,6 +81,16 @@ struct ProjectPage {
     projects: Vec<MindwtrProject>,
 }
 
+/// Die `data.json` des WebDAV-Syncs. Dieselben Werte wie aus der REST-Antwort,
+/// nur alle auf einmal und ohne Umschlag.
+#[derive(Debug, Deserialize)]
+struct AppData {
+    #[serde(default)]
+    tasks: Vec<MindwtrTask>,
+    #[serde(default)]
+    projects: Vec<MindwtrProject>,
+}
+
 pub struct MindwtrConnector {
     source: SourceRef,
     config: MindwtrSource,
@@ -91,10 +101,6 @@ impl MindwtrConnector {
         let source = SourceRef::new(SourceKind::Mindwtr, &config.common.instance, &config.common.label);
         Self { source, config }
     }
-
-    fn token<'a>(&self, ctx: &'a SyncContext<'_>) -> Result<&'a str> {
-        ctx.secrets.require(&self.config.token_key)
-    }
 }
 
 #[async_trait]
@@ -104,8 +110,38 @@ impl Connector for MindwtrConnector {
     }
 
     async fn fetch(&self, ctx: &SyncContext<'_>) -> Result<Harvest> {
-        let token = self.token(ctx)?;
-        let base = join(&self.config.base_url, "v1");
+        match &self.config.access {
+            MindwtrAccess::Cloud { base_url, token_key } => {
+                self.fetch_cloud(ctx, base_url, token_key).await
+            }
+            MindwtrAccess::Webdav { url, username, password_key } => {
+                self.fetch_webdav(ctx, url, username, password_key).await
+            }
+        }
+    }
+
+    async fn complete(&self, ctx: &SyncContext<'_>, item_id: &str) -> Result<()> {
+        let MindwtrAccess::Cloud { base_url, token_key } = &self.config.access else {
+            return Err(Error::config(
+                "Ueber WebDAV liest Tory nur. Zum Abhaken die Cloud-Schnittstelle einrichten.",
+            ));
+        };
+        let token = ctx.secrets.require(token_key)?;
+        let url = join(&join(base_url, "v1"), &format!("tasks/{item_id}/complete"));
+        expect_ok(ctx.http.post(url).bearer_auth(token).send().await?).await?;
+        Ok(())
+    }
+}
+
+impl MindwtrConnector {
+    async fn fetch_cloud(
+        &self,
+        ctx: &SyncContext<'_>,
+        base_url: &str,
+        token_key: &str,
+    ) -> Result<Harvest> {
+        let token = ctx.secrets.require(token_key)?;
+        let base = join(base_url, "v1");
 
         // Pro Status ein Aufruf: `status` nimmt nur einen Wert, und so bleibt
         // die Antwort klein.
@@ -143,11 +179,23 @@ impl Connector for MindwtrConnector {
         Ok(map_tasks(&self.source, &self.config, tasks, &projects, ctx, total))
     }
 
-    async fn complete(&self, ctx: &SyncContext<'_>, item_id: &str) -> Result<()> {
-        let token = self.token(ctx)?;
-        let url = join(&join(&self.config.base_url, "v1"), &format!("tasks/{item_id}/complete"));
-        expect_ok(ctx.http.post(url).bearer_auth(token).send().await?).await?;
-        Ok(())
+    /// Ein `GET` auf die Datei, mehr ist es nicht. Die Zahl in der Karte kommt
+    /// hier aus der Datei selbst statt aus einem `total` des Servers.
+    async fn fetch_webdav(
+        &self,
+        ctx: &SyncContext<'_>,
+        url: &str,
+        username: &str,
+        password_key: &str,
+    ) -> Result<Harvest> {
+        let password = ctx.secrets.require(password_key)?;
+        let body = expect_ok(ctx.http.get(url).basic_auth(username, Some(password)).send().await?)
+            .await?
+            .text()
+            .await?;
+        let data = parse_app_data(&body)?;
+        let total = data.tasks.len();
+        Ok(map_tasks(&self.source, &self.config, data.tasks, &data.projects, ctx, total))
     }
 }
 
@@ -164,6 +212,7 @@ pub fn map_tasks(
         projects.iter().map(|p| (p.id.as_str(), p.title.as_str())).collect();
     let today = ctx.today();
     let horizon = today + chrono::Duration::days(config.horizon_days.max(0));
+    let abhakbar = config.access.can_complete();
 
     let open: Vec<&MindwtrTask> = tasks
         .iter()
@@ -235,8 +284,10 @@ pub fn map_tasks(
             urgency,
             badge: project.map(|p| p.to_string()).or_else(|| Some(status_label(&task.status).into())),
             tags: task.tags.clone(),
-            action: Some(Action::CompleteTask { source: source.id(), task_id: task.id.clone() }),
-            completable: true,
+            // Ueber WebDAV waere der Haken eine Luege: er kaeme nirgends an.
+            action: abhakbar
+                .then(|| Action::CompleteTask { source: source.id(), task_id: task.id.clone() }),
+            completable: abhakbar,
             dedup_key: Some(format!("task:{}", task.title.to_lowercase())),
             ..Signal::new(source.clone(), task.id.clone(), task.title.clone())
         });
@@ -288,9 +339,38 @@ pub fn map_tasks(
     }
 }
 
+/// Liest die `data.json`. Ein nicht-JSON-Koerper heisst hier fast immer eines
+/// von zwei Dingen, und beide soll der Nutzer lesen koennen statt "expected
+/// value at line 1".
+fn parse_app_data(body: &str) -> Result<AppData> {
+    let trimmed = body.trim_start();
+    if !trimmed.starts_with('{') {
+        let anfang: String = trimmed.chars().take(80).collect();
+        return Err(Error::Sync(crate::model::SyncFault::Misconfigured {
+            detail: if trimmed.starts_with('<') {
+                format!(
+                    "Die URL liefert HTML statt JSON — sie zeigt vermutlich auf einen Ordner \
+                     oder eine Anmeldeseite statt auf die data.json. Anfang: {anfang}"
+                )
+            } else {
+                format!(
+                    "Die Datei ist kein JSON. Bei eingeschalteter Sync-Verschluesselung heisst \
+                     sie data.enc.json und ist fuer Tory nicht lesbar. Anfang: {anfang}"
+                )
+            },
+        }));
+    }
+    serde_json::from_str(trimmed).map_err(Error::from)
+}
+
 /// Der Schluesselname, unter dem das Token liegt.
 pub fn token_key(instance: &str) -> String {
     format!("mindwtr.{instance}.token")
+}
+
+/// Der Schluesselname, unter dem das WebDAV-Passwort liegt.
+pub fn password_key(instance: &str) -> String {
+    format!("mindwtr.{instance}.webdav")
 }
 
 fn status_label(status: &str) -> &str {
@@ -332,11 +412,24 @@ mod tests {
     fn konfig() -> MindwtrSource {
         MindwtrSource {
             common: SourceCommon::new("haupt", "Mindwtr", Cadence::minutes(15)),
-            base_url: "https://mindwtr.example.de".into(),
-            token_key: token_key("haupt"),
+            access: MindwtrAccess::Cloud {
+                base_url: "https://mindwtr.example.de".into(),
+                token_key: token_key("haupt"),
+            },
             statuses: vec!["inbox".into(), "next".into(), "waiting".into()],
             include_undated: false,
             horizon_days: 7,
+        }
+    }
+
+    fn konfig_webdav() -> MindwtrSource {
+        MindwtrSource {
+            access: MindwtrAccess::Webdav {
+                url: "https://cloud.example.de/dav/Mindwtr/data.json".into(),
+                username: "jakob".into(),
+                password_key: password_key("haupt"),
+            },
+            ..konfig()
         }
     }
 
@@ -471,6 +564,75 @@ mod tests {
             }
             other => panic!("falsche Aktion: {other:?}"),
         }
+    }
+
+    #[test]
+    fn ueber_webdav_ist_nichts_abhakbar() {
+        let u = Umgebung::neu("webdav-readonly");
+        let (tasks, projects) = fixture();
+        let h = map_tasks(&quelle(), &konfig_webdav(), tasks, &projects, &u.ctx(), 20);
+        assert!(!h.signals.is_empty());
+        assert!(
+            h.signals.iter().all(|s| !s.completable && s.action.is_none()),
+            "ein Haken, der nirgends ankommt, gehoert nicht in die Zeile"
+        );
+    }
+
+    #[test]
+    fn die_webdav_datei_liefert_dieselben_aufgaben_wie_die_rest_antwort() {
+        // Beide Wege tragen dieselben `Task`-Werte; nur die Huelle unterscheidet
+        // sich. Genau darum bleibt die Abbildung darunter unveraendert.
+        let data = parse_app_data(include_str!("../../tests/fixtures/mindwtr_data.json")).unwrap();
+        assert_eq!(data.tasks.len(), 6);
+        assert_eq!(data.projects.len(), 2);
+        assert_eq!(data.tasks[0].title, "Steuerunterlagen zusammenstellen");
+
+        let u = Umgebung::neu("webdav-parity");
+        let ueber_datei =
+            map_tasks(&quelle(), &konfig(), data.tasks, &data.projects, &u.ctx(), 20);
+        let (tasks, projects) = fixture();
+        let ueber_rest = map_tasks(&quelle(), &konfig(), tasks, &projects, &u.ctx(), 20);
+
+        let titel = |h: &Harvest| h.signals.iter().map(|s| s.title.clone()).collect::<Vec<_>>();
+        assert_eq!(titel(&ueber_datei), titel(&ueber_rest));
+        assert_eq!(ueber_datei.overview.metric, ueber_rest.overview.metric);
+    }
+
+    #[test]
+    fn html_statt_json_wird_erklaert() {
+        let err = parse_app_data("<!doctype html><html><body>Login</body></html>").unwrap_err();
+        let text = err.to_string();
+        assert!(text.contains("HTML"), "{text}");
+        assert!(text.contains("Ordner"), "sagt, was wahrscheinlich falsch ist: {text}");
+    }
+
+    #[test]
+    fn verschluesselte_datei_wird_erklaert() {
+        let err = parse_app_data("\u{1}\u{2}binaerer Kram").unwrap_err();
+        assert!(err.to_string().contains("data.enc.json"), "{err}");
+    }
+
+    #[test]
+    fn kaputte_konfiguration_faellt_vor_dem_sync_auf() {
+        use crate::config::Config;
+        let mut verschluesselt = konfig_webdav();
+        verschluesselt.access = MindwtrAccess::Webdav {
+            url: "https://cloud.example.de/dav/Mindwtr/data.enc.json".into(),
+            username: "jakob".into(),
+            password_key: password_key("haupt"),
+        };
+        let probleme = Config { mindwtr: vec![verschluesselt], ..Config::default() }.validate();
+        assert_eq!(probleme.len(), 1);
+        assert!(probleme[0].contains("verschluesselte"), "{:?}", probleme);
+
+        let mut ordner = konfig_webdav();
+        ordner.access = MindwtrAccess::Webdav {
+            url: "https://cloud.example.de/dav/Mindwtr/".into(),
+            username: "jakob".into(),
+            password_key: password_key("haupt"),
+        };
+        let probleme = Config { mindwtr: vec![ordner], ..Config::default() }.validate();
+        assert!(probleme.iter().any(|p| p.contains("data.json")), "{:?}", probleme);
     }
 
     #[test]

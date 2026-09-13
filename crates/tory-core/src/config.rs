@@ -112,15 +112,52 @@ fn default_scan_limit() -> usize {
     400
 }
 
-/// Der selbst gehostete Mindwtr-Cloud-Server. Die REST-Schnittstelle liegt
-/// unter `/v1`, die Anmeldung ist ein Bearer-Token.
+/// Wie Tory an die Mindwtr-Daten kommt.
+///
+/// Mindwtr synchronisiert auf zwei Wegen, und beide fuehren hierher:
+///
+/// * **Cloud** — der selbst gehostete `mindwtr-cloud` aus dem Docker-Stack, mit
+///   REST unter `/v1` und Bearer-Token. Der vollstaendige Weg: lesen *und*
+///   abhaken.
+/// * **WebDAV** — dieselbe `data.json`, die die App auf einen WebDAV-Server
+///   legt. Nur lesend; warum, steht bei [`MindwtrAccess::Webdav`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum MindwtrAccess {
+    Cloud {
+        /// Basis-URL ohne `/v1`, etwa `https://mindwtr.example.de`.
+        base_url: String,
+        token_key: String,
+    },
+    /// Die `data.json`, die Mindwtrs WebDAV-Sync schreibt.
+    ///
+    /// Bewusst **nur lesend**. Abhaken hiesse, die ganze Datei zurueckzuschreiben
+    /// — mit Revisionszaehlern, Grabsteinen und Konfliktabgleich gegen ein
+    /// Geraet, das gerade dasselbe tut. Mindwtr betreibt dafuer eine eigene
+    /// Fencing-Logik; sie nachzubauen, um eine Checkbox zu setzen, waere der
+    /// sichere Weg, Aufgaben zu verlieren. Wer abhaken will, nimmt die Cloud.
+    Webdav {
+        /// Vollstaendige URL der Datei, etwa
+        /// `https://cloud.example.de/remote.php/dav/files/jakob/Mindwtr/data.json`.
+        url: String,
+        username: String,
+        password_key: String,
+    },
+}
+
+impl MindwtrAccess {
+    /// Ob diese Anbindung Aufgaben abhaken kann.
+    pub fn can_complete(&self) -> bool {
+        matches!(self, MindwtrAccess::Cloud { .. })
+    }
+}
+
+/// Mindwtr — selbst gehostet, ueber die Cloud-Schnittstelle oder ueber WebDAV.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MindwtrSource {
     #[serde(flatten)]
     pub common: SourceCommon,
-    /// Basis-URL ohne `/v1`, etwa `https://mindwtr.example.de`.
-    pub base_url: String,
-    pub token_key: String,
+    pub access: MindwtrAccess,
     /// Nur diese Status als Signal anzeigen.
     #[serde(default = "default_mindwtr_statuses")]
     pub statuses: Vec<String>,
@@ -432,7 +469,10 @@ impl Config {
                 keys.push(password_key.clone());
             }
         }
-        keys.extend(self.mindwtr.iter().map(|s| s.token_key.clone()));
+        keys.extend(self.mindwtr.iter().map(|s| match &s.access {
+            MindwtrAccess::Cloud { token_key, .. } => token_key.clone(),
+            MindwtrAccess::Webdav { password_key, .. } => password_key.clone(),
+        }));
         keys.extend(self.nocodb.iter().map(|s| s.token_key.clone()));
         // Gmail legt Refresh-Token unter einem abgeleiteten Namen ab.
         keys.extend(self.gmail.iter().map(|s| crate::connectors::gmail::refresh_token_key(&s.common.instance)));
@@ -458,14 +498,47 @@ impl Config {
             }
         }
         for s in &self.mindwtr {
-            if !s.base_url.starts_with("http") {
-                problems.push(format!("Mindwtr {}: URL braucht http:// oder https://", s.common.label));
-            }
-            if s.base_url.trim_end_matches('/').ends_with("/v1") {
-                problems.push(format!(
-                    "Mindwtr {}: die Basis-URL endet ohne /v1 — Tory haengt es selbst an",
-                    s.common.label
-                ));
+            match &s.access {
+                MindwtrAccess::Cloud { base_url, .. } => {
+                    if !base_url.starts_with("http") {
+                        problems.push(format!(
+                            "Mindwtr {}: URL braucht http:// oder https://",
+                            s.common.label
+                        ));
+                    }
+                    if base_url.trim_end_matches('/').ends_with("/v1") {
+                        problems.push(format!(
+                            "Mindwtr {}: die Basis-URL endet ohne /v1 — Tory haengt es selbst an",
+                            s.common.label
+                        ));
+                    }
+                }
+                MindwtrAccess::Webdav { url, .. } => {
+                    if !url.starts_with("http") {
+                        problems.push(format!(
+                            "Mindwtr {}: URL braucht http:// oder https://",
+                            s.common.label
+                        ));
+                    }
+                    // `.enc.json` ist die Ende-zu-Ende-verschluesselte Fassung.
+                    // Ohne den Schluessel des Geraets ist daraus nichts zu holen,
+                    // und das soll hier stehen und nicht als Parser-Fehler beim
+                    // ersten Sync auftauchen.
+                    if url.contains(".enc.") {
+                        problems.push(format!(
+                            "Mindwtr {}: {url} ist die verschluesselte Fassung. \
+                             Tory kann sie nicht lesen — entweder die Sync-Verschluesselung \
+                             abschalten oder die Cloud-Schnittstelle nehmen.",
+                            s.common.label
+                        ));
+                    }
+                    if !url.trim_end_matches('/').ends_with(".json") {
+                        problems.push(format!(
+                            "Mindwtr {}: die URL muss auf die data.json zeigen, nicht auf den Ordner",
+                            s.common.label
+                        ));
+                    }
+                }
             }
         }
         for s in &self.nocodb {

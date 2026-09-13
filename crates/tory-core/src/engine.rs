@@ -456,8 +456,10 @@ mod tests {
     fn mindwtr(instance: &str) -> MindwtrSource {
         MindwtrSource {
             common: SourceCommon::new(instance, "Mindwtr", Cadence::minutes(15)),
-            base_url: "https://m.example.de".into(),
-            token_key: format!("mindwtr.{instance}.token"),
+            access: crate::config::MindwtrAccess::Cloud {
+                base_url: "https://m.example.de".into(),
+                token_key: format!("mindwtr.{instance}.token"),
+            },
             statuses: vec!["next".into()],
             include_undated: false,
             horizon_days: 7,
@@ -494,7 +496,10 @@ mod tests {
         let dir = tempdir("invalid");
         let engine = Engine::open(&dir).unwrap();
         let mut broken = mindwtr("haupt");
-        broken.base_url = "noco.example.de".into(); // ohne Schema
+        broken.access = crate::config::MindwtrAccess::Cloud {
+            base_url: "noco.example.de".into(), // ohne Schema
+            token_key: "mindwtr.haupt.token".into(),
+        };
         let problems = engine
             .save_config(Config { mindwtr: vec![broken], ..Config::default() })
             .await

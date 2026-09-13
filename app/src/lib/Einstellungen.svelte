@@ -55,8 +55,7 @@
     const instance = `mindwtr${entwurf.mindwtr.length + 1}`;
     entwurf.mindwtr.push({
       ...gemeinsam(instance, "Mindwtr", 15),
-      base_url: "https://",
-      token_key: `mindwtr.${instance}.token`,
+      access: { kind: "cloud", base_url: "https://", token_key: `mindwtr.${instance}.token` },
       statuses: ["inbox", "next", "waiting"],
       include_undated: false,
       horizon_days: 7,
@@ -222,9 +221,35 @@
             <button class="weg" onclick={() => entwurf.mindwtr.splice(i, 1)}>entfernen</button>
           </div>
           <Feld label="Kennung" bind:value={m.instance} />
-          <Feld label="Basis-URL der Cloud" bind:value={m.base_url} typ="url"
-            platzhalter="https://mindwtr.example.de" hinweis="Ohne /v1 — das haengt Tory selbst an." />
-          <Geheimnis name={m.token_key} label="Bearer-Token" />
+          <label class="feld">
+            <span class="label">Zugriff</span>
+            <select value={m.access.kind} onchange={(e) => {
+              const k = (e.currentTarget as HTMLSelectElement).value;
+              m.access = k === "cloud"
+                ? { kind: "cloud", base_url: "https://", token_key: `mindwtr.${m.instance}.token` }
+                : { kind: "webdav", url: "https://", username: "",
+                    password_key: `mindwtr.${m.instance}.webdav` };
+            }}>
+              <option value="cloud">Cloud-Dienst — lesen und abhaken</option>
+              <option value="webdav">WebDAV-Datei — nur lesen</option>
+            </select>
+          </label>
+          {#if m.access.kind === "cloud"}
+            <Feld label="Basis-URL der Cloud" bind:value={m.access.base_url} typ="url"
+              platzhalter="https://mindwtr.example.de" hinweis="Ohne /v1 — das haengt Tory selbst an." />
+            <Geheimnis name={m.access.token_key} label="Bearer-Token" />
+          {:else}
+            <Feld label="URL der data.json" bind:value={m.access.url} typ="url"
+              platzhalter="https://cloud.example.de/remote.php/dav/files/jakob/Mindwtr/data.json"
+              hinweis="Dieselbe Datei, die Mindwtrs WebDAV-Sync schreibt." />
+            <Feld label="Benutzername" bind:value={m.access.username} />
+            <Geheimnis name={m.access.password_key} label="WebDAV-Passwort" />
+            <p class="leise erklaerung">
+              Ueber WebDAV liest Tory nur. Abhaken hiesse, die ganze Datei zurueckzuschreiben,
+              waehrend vielleicht ein anderes Geraet dasselbe tut — der sichere Weg, Aufgaben
+              zu verlieren. Wer abhaken will, nimmt den Cloud-Dienst.
+            </p>
+          {/if}
           <Feld label="Status" bind:value={
             () => m.statuses.join(", "),
             (v: string | number) => (m.statuses = alsListe(String(v)))
