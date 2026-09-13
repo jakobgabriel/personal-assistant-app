@@ -137,8 +137,9 @@ pub fn map_items(
 ) -> Harvest {
     let cutoff = now - Duration::hours(config.max_age_hours.max(1));
     items.retain(|h| h.published.map(|p| p >= cutoff).unwrap_or(true));
-    // Neueste zuerst; Eintraege ohne Datum hinten.
-    items.sort_by(|a, b| b.published.cmp(&a.published));
+    // Neueste zuerst; Eintraege ohne Datum hinten (`None` sortiert vor `Some`,
+    // umgekehrt also ans Ende).
+    items.sort_by_key(|h| std::cmp::Reverse(h.published));
 
     // Dieselbe Meldung aus zwei Feeds: einmal zeigen.
     let mut seen_titles = HashSet::new();

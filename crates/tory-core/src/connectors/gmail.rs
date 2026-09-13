@@ -337,7 +337,7 @@ pub fn map_messages(
     }
 
     // Innerhalb von Gmail: neueste zuerst. Die Gesamtsortierung macht der Store.
-    signals.sort_by(|a, b| b.at.cmp(&a.at));
+    signals.sort_by_key(|s| std::cmp::Reverse(s.at));
     let _ = now;
 
     Harvest {

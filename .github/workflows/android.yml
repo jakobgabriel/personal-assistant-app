@@ -92,7 +92,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
 
@@ -120,7 +120,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: app/package-lock.json
 
@@ -144,21 +144,38 @@ jobs:
           key: cargo-android-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-android-${{ runner.os }}-
 
-      # Der Runner bringt ein NDK mit. Es zu benutzen spart einen Download von
-      # ueber einem Gigabyte; nur wenn keins da ist, wird eines nachgeladen.
+      # Der Runner bringt mehrere NDKs mit; benutzt wird eines davon, das spart
+      # einen Download von ueber einem Gigabyte.
+      #
+      # Bewusst *nicht* `ANDROID_NDK_LATEST_HOME`: das zeigt auf die neueste
+      # installierte Version, und "neu" ist hier kein Vorteil, sondern ein
+      # Risiko. Eine NDK-Hauptversion verschiebt Werkzeugpfade und wirft
+      # Altlasten heraus; der Build merkt das erst beim Binden, nach einer
+      # Viertelstunde Uebersetzen. Tauri ist gegen r26/r27 getestet, also wird
+      # in dieser Reihenfolge gesucht.
       - name: NDK bestimmen
         run: |
           set -euo pipefail
-          for kandidat in "${ANDROID_NDK_LATEST_HOME:-}" "${ANDROID_NDK_HOME:-}" "${ANDROID_NDK_ROOT:-}"; do
-            if [ -n "$kandidat" ] && [ -d "$kandidat" ]; then
-              echo "NDK_HOME=$kandidat" >> "$GITHUB_ENV"
-              echo "NDK gefunden: $kandidat"
-              exit 0
-            fi
+          ndks="${ANDROID_HOME:-/usr/local/lib/android/sdk}/ndk"
+          gewaehlt=""
+          for major in 27 26 28; do
+            for dir in "$ndks/$major."*; do
+              if [ -d "$dir" ]; then gewaehlt="$dir"; break 2; fi
+            done
           done
-          echo "Kein NDK vorinstalliert, lade nach."
-          sdkmanager --install "ndk;27.2.12479018"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          if [ -z "$gewaehlt" ] && [ -n "${ANDROID_NDK_HOME:-}" ] && [ -d "${ANDROID_NDK_HOME}" ]; then
+            echo "Keine getestete Hauptversion da, nehme die Vorgabe des Runners."
+            gewaehlt="$ANDROID_NDK_HOME"
+          fi
+          if [ -z "$gewaehlt" ]; then
+            echo "Kein brauchbares NDK vorinstalliert, lade r27 nach."
+            sdkmanager --install "ndk;27.2.12479018"
+            gewaehlt="$ndks/27.2.12479018"
+          fi
+          echo "NDK_HOME=$gewaehlt" >> "$GITHUB_ENV"
+          echo "Verwende NDK: $gewaehlt"
+          ls "$gewaehlt/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
+            || { echo "::error::NDK-Toolchain fehlt unter $gewaehlt"; exit 1; }
 
       - name: Abhaengigkeiten
         working-directory: app
