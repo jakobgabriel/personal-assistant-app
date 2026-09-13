@@ -193,7 +193,15 @@ fn parse_task_line(line: &str, line_no: usize) -> Option<VaultTask> {
     // Prioritaets- und Wiederholungszeichen des Tasks-Plugins: hoch, hoeher,
     // niedrig, wiederkehrend. Sie sind Metadaten, kein Aufgabentext.
     let text = text.replace(['\u{23EB}', '\u{1F53C}', '\u{1F53D}', '\u{1F501}'], "");
-    task.text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Inline-Tags stehen bereits in `tags`. Bleiben sie zusaetzlich im Text,
+    // ist der Titel unnoetig laut — und, schlimmer, dieselbe Aufgabe aus
+    // Obsidian und Mindwtr bekommt zwei verschiedene Entdopplungsschluessel
+    // und erscheint zweimal auf dem Startscreen.
+    task.text = text
+        .split_whitespace()
+        .filter(|wort| !ist_tag(wort))
+        .collect::<Vec<_>>()
+        .join(" ");
     (!task.text.is_empty()).then_some(task)
 }
 
@@ -225,6 +233,22 @@ fn inline_tags(line: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Ob ein Wort ein Tag ist, das [`inline_tags`] bereits eingesammelt hat.
+/// Dieselbe Regel, damit Text und Tagliste nicht auseinanderlaufen.
+fn ist_tag(wort: &str) -> bool {
+    wort.strip_prefix('#').is_some_and(|rest| {
+        let tag: String = rest
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || matches!(c, '-' | '_' | '/'))
+            .collect();
+        // Genau die Bedingung aus `inline_tags`, und der Rest muss leer sein:
+        // "#42" ist kein Tag, "#tag." ebenso wenig ein sauberes Wort.
+        tag.len() >= 2
+            && tag.chars().next().is_some_and(|c| !c.is_ascii_digit())
+            && tag.len() == rest.len()
+    })
 }
 
 /// Zeilen, die als Vorschautext taugen — keine Listen, Tabellen, Ueberschriften.
@@ -271,10 +295,27 @@ mod tests {
         let note = parse_note("- [ ] Steuer einreichen \u{1F4C5} 2026-09-30 #finanzen\n- [x] Erledigt \u{1F4C5} 2026-09-01\n");
         assert_eq!(note.open_tasks.len(), 1, "abgehakte Aufgaben gehoeren nicht dazu");
         let task = &note.open_tasks[0];
-        assert_eq!(task.text, "Steuer einreichen #finanzen");
+        assert_eq!(task.text, "Steuer einreichen", "Tag gehoert in tags, nicht in den Titel");
         assert_eq!(task.due, Some(NaiveDate::from_ymd_opt(2026, 9, 30).unwrap()));
         assert_eq!(task.tags, vec!["finanzen"]);
         assert_eq!(task.line, 1);
+    }
+
+    #[test]
+    fn tags_verlassen_den_text_aber_nicht_die_tagliste() {
+        let note = parse_note("- [ ] Angebot Dachdecker gegenlesen #handwerk #haus\n");
+        let task = &note.open_tasks[0];
+        // Genau dieser Text bildet den Entdopplungsschluessel. Steht der Tag
+        // noch drin, erscheint dieselbe Aufgabe aus Mindwtr ein zweites Mal.
+        assert_eq!(task.text, "Angebot Dachdecker gegenlesen");
+        assert_eq!(task.tags, vec!["handwerk", "haus"]);
+    }
+
+    #[test]
+    fn ziffernfolgen_sind_keine_tags_und_bleiben_stehen() {
+        let note = parse_note("- [ ] Ticket #42 nachfassen #arbeit\n");
+        assert_eq!(note.open_tasks[0].text, "Ticket #42 nachfassen");
+        assert_eq!(note.open_tasks[0].tags, vec!["arbeit"]);
     }
 
     #[test]

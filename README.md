@@ -17,6 +17,31 @@ Angebunden sind, alle frei konfigurierbar und in mehreren Instanzen:
 Dazu eine AI-Schicht (Anthropic, OpenAI, Ollama) mit eigenen Schluesseln: der
 erste Schritt, das Tagesbriefing, laeuft.
 
+## So sieht es aus
+
+| Heute | Quelle | Einstellungen |
+| --- | --- | --- |
+| ![Startscreen](docs/bilder/heute.png) | ![Detailseite](docs/bilder/quelle.png) | ![Einstellungen](docs/bilder/einstellungen.png) |
+
+Aufnahmen der laufenden App mit Beispieldaten, nicht aus einem Entwurf. Links
+oben: drei Signale aus drei verschiedenen Quellen, quellenuebergreifend nach
+Dringlichkeit sortiert — eine NocoDB-Zeile, eine Obsidian-Aufgabe und eine aus
+Mindwtr, ohne dass der Startscreen weiss, woher sie kommen.
+
+Zum Nachstellen braucht es keinen einzigen echten Dienst:
+
+```bash
+cargo run -p tory-core --example demo -- /tmp/tory-demo 8799
+# in einer zweiten Sitzung:
+XDG_DATA_HOME=/tmp/tory-demo npm --prefix app run tauri dev
+```
+
+Das Beispiel startet einen kleinen Server, der sich wie Mindwtr, NocoDB und drei
+Nachrichtenfeeds verhaelt, legt daneben einen echten Obsidian-Vault aus
+Markdown-Dateien an und schreibt eine passende Konfiguration. Alle Datumsangaben
+entstehen relativ zu heute — eine Beispielmenge mit festen Daten veraltet, und
+ein Startscreen, auf dem alles ueberfaellig ist, zeigt nicht, was er zeigen soll.
+
 ## Stand
 
 M0 bis M2 sind gebaut: Kern, alle fuenf Anbindungen, Oberflaeche mit

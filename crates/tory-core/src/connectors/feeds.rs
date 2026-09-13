@@ -176,10 +176,12 @@ pub fn map_items(
         if n == 0 {
             continue;
         }
-        let newest = items.iter().find(|h| h.topic == topic);
         lines.push(OverviewLine {
             text: format!("{}: {}", topic.label(), n),
-            note: newest.map(|h| shorten(&h.title, 60)),
+            // Bewusst ohne Notiz: die neueste Schlagzeile steht als Signal
+            // darunter in voller Laenge. Auf der Kachel bliebe von ihr nur ein
+            // abgeschnittener Rest, der nichts sagt.
+            note: None,
             urgency: Some(if topic == FeedTopic::Weather { Urgency::High } else { Urgency::Info }),
         });
     }

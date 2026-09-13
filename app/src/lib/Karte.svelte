@@ -115,12 +115,15 @@
     gap: 4px;
   }
 
+  /* Zwei Texte nebeneinander gehen in einer 150 px breiten Kachel nicht auf:
+     sie kuerzen sich gegenseitig weg, bis beide unleserlich sind. Deshalb ein
+     Raster — die Notiz steht unter ihrer Zeile statt neben ihr. */
   .zeilen li {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
-    gap: 7px;
+    gap: 1px 7px;
     font-size: 12px;
-    min-width: 0;
   }
 
   .punkt {
@@ -128,18 +131,21 @@
     height: 5px;
     border-radius: 50%;
     background: var(--u, var(--info));
-    flex: 0 0 auto;
+    grid-column: 1;
   }
 
-  .text {
+  .text,
+  .notiz {
+    grid-column: 2;
+    /* `minmax(0, 1fr)` oben und `min-width: 0` hier: erst zusammen darf die
+       Spalte schmaler werden als ihr Inhalt, sonst greift `text-overflow` nie. */
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .notiz {
-    margin-left: auto;
-    flex: 0 0 auto;
     font-size: 11px;
   }
 

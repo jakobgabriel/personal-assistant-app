@@ -541,7 +541,11 @@
   }
 
   .schalter input {
-    width: auto;
+    /* 18 px statt der Voreinstellung: mit dem Finger ist das der Unterschied
+       zwischen treffen und danebentippen. */
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
     accent-color: var(--akzent);
   }
 
