@@ -146,12 +146,14 @@ Der CI-Lauf setzt deshalb drei Cargo-Schalter (`DEBUG=false`, `STRIP=symbols`,
 aber keine Symbole mehr und laeuft optimiert. Lokal aendert sich nichts: wer
 hier entwickelt, behaelt Symbole und schnelles Uebersetzen.
 
-Zum Vergleich, dieselbe Binaerdatei fuer den Desktop:
+Gemessen:
 
-| Bauart | Groesse |
-| --- | --- |
-| `cargo build` (Debug, mit Symbolen) | 286 MB |
-| `cargo build --release` | **9,1 MB** |
+| Was | Vorher | Nachher |
+| --- | --- | --- |
+| APK (aarch64, debug-signiert) | 59,7 MB | **12,4 MB** |
+| Desktop-Binaerdatei | 286 MB (`cargo build`) | **9,1 MB** (`--release`) |
+
+Beides dieselbe Software. Der Unterschied sind Debug-Symbole, nicht Programm.
 
 > **Der Lauf braucht Actions-Minuten.** Dieses Repository ist privat, und
 > private Repositories rechnen jede Minute gegen das Kontingent des Kontos.
