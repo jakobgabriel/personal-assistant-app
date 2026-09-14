@@ -135,6 +135,12 @@ pub async fn read_webdav(
         if !visited.insert(dir.clone()) {
             continue;
         }
+        // Sicherung: ein Server, dessen `href` nicht zu dem passt, was er
+        // beantwortet hat, darf Tory nicht ins Bodenlose schicken.
+        if dir.matches('/').count() >= MAX_VAULT_TIEFE {
+            log::warn!("Vault-Ordner tiefer als {MAX_VAULT_TIEFE} Ebenen, ueberspringe {dir}");
+            continue;
+        }
         let url = collection_url(&base, &dir);
         let antwort = crate::http::expect_ok(
             ctx.http
@@ -155,7 +161,7 @@ pub async fn read_webdav(
             Err(err) => return Err(err),
         };
 
-        for entry in parse_propfind(&xml, &base) {
+        for entry in parse_propfind(&xml, &url) {
             let rel = if dir.is_empty() { entry.name.clone() } else { format!("{dir}/{}", entry.name) };
             if rel.is_empty() || rel == dir {
                 continue;
@@ -209,6 +215,10 @@ fn mit_hinweis(err: Error, url: &str) -> Error {
     })
 }
 
+/// Wie tief Tory in einen Vault hineingeht. Tiefer verschachtelt niemand seine
+/// Notizen; was darunter liegt, ist eher ein Hinweis auf eine Schleife.
+const MAX_VAULT_TIEFE: usize = 12;
+
 const PROPFIND_BODY: &str = r#"<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop>
 <d:resourcetype/><d:getlastmodified/><d:getcontentlength/>
@@ -228,13 +238,18 @@ pub struct DavEntry {
 /// Ereignisbasiert und namensraum-unabhaengig: WebDAV-Server unterscheiden sich
 /// in den Praefixen (`d:`, `D:`, keins) und darin, ob `href` absolut oder
 /// pfadrelativ ist. Deshalb wird nur der lokale Elementname betrachtet.
-pub fn parse_propfind(xml: &str, base_url: &str) -> Vec<DavEntry> {
+///
+/// `angefragt` ist die URL der Sammlung, auf die das PROPFIND ging. Eine
+/// Antwort mit `Depth: 1` enthaelt **die Sammlung selbst** als ersten Eintrag,
+/// und den darf der Aufrufer nicht fuer ein Kind halten — sonst steigt er in
+/// `Merker/Merker/` hinab und bekommt zu Recht einen 404.
+pub fn parse_propfind(xml: &str, angefragt: &str) -> Vec<DavEntry> {
     use quick_xml::events::Event;
     use quick_xml::Reader;
 
-    let base_path = url::Url::parse(base_url)
+    let eigener_pfad = url::Url::parse(angefragt)
         .map(|u| decode_path(u.path().trim_end_matches('/')))
-        .unwrap_or_default();
+        .unwrap_or_else(|_| decode_path(angefragt.trim_end_matches('/')));
 
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(true);
@@ -270,7 +285,7 @@ pub fn parse_propfind(xml: &str, base_url: &str) -> Vec<DavEntry> {
             }
             Ok(Event::End(tag)) => {
                 if tag.local_name().as_ref() == b"response" {
-                    if let Some(name) = entry_name(href.as_deref(), &base_path) {
+                    if let Some(name) = entry_name(href.as_deref(), &eigener_pfad) {
                         out.push(DavEntry { name, is_dir, modified });
                     }
                 }
@@ -313,9 +328,9 @@ fn parse_http_date(value: &str) -> Option<DateTime<Utc>> {
         .map(|naive| chrono::TimeZone::from_utc_datetime(&Utc, &naive))
 }
 
-/// Letzter Pfadteil eines `href`, relativ zur angefragten Basis. `None` fuer den
-/// angefragten Ordner selbst — der steht in jeder PROPFIND-Antwort mit drin.
-fn entry_name(href: Option<&str>, base_path: &str) -> Option<String> {
+/// Name eines Kindeintrags. `None` fuer die angefragte Sammlung selbst — sie
+/// steht bei `Depth: 1` in jeder Antwort mit drin, auf jeder Ebene.
+fn entry_name(href: Option<&str>, eigener_pfad: &str) -> Option<String> {
     let href = href?.trim();
     if href.is_empty() {
         return None;
@@ -326,11 +341,13 @@ fn entry_name(href: Option<&str>, base_path: &str) -> Option<String> {
         None => href.to_string(),
     };
     let decoded = decode_path(path.trim_end_matches('/'));
-    let rel = decoded.strip_prefix(base_path).unwrap_or(&decoded).trim_start_matches('/');
-    if rel.is_empty() {
+    // Genau der Vergleich, der vorher fehlte: nicht gegen die Vault-Wurzel,
+    // sondern gegen den Ordner, den wir gerade angefragt haben.
+    if decoded == eigener_pfad {
         return None;
     }
-    Some(rel.rsplit('/').next().unwrap_or(rel).to_string())
+    let name = decoded.rsplit('/').next().unwrap_or(&decoded);
+    (!name.is_empty()).then(|| name.to_string())
 }
 
 /// Notizen -> Signale und Karte. Reine Funktion, ohne Netz und Dateisystem.
@@ -707,17 +724,72 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    const VAULT_URL: &str = "https://cloud.example.de/remote.php/dav/files/jakob/Obsidian/Privat";
+
     #[test]
     fn propfind_wird_gelesen() {
         let xml = include_str!("../../tests/fixtures/webdav_propfind.xml");
-        let entries = parse_propfind(xml, "https://cloud.example.de/remote.php/dav/files/jakob/Obsidian/Privat");
+        let entries = parse_propfind(xml, VAULT_URL);
         let namen: Vec<(&str, bool)> = entries.iter().map(|e| (e.name.as_str(), e.is_dir)).collect();
         assert!(namen.contains(&("Projekte", true)), "Ordner erkannt: {namen:?}");
         assert!(namen.contains(&("Tagebuch 2026.md", false)), "Datei mit Leerzeichen: {namen:?}");
         assert!(namen.iter().any(|(n, _)| *n == "Notiz.md"));
-        assert!(!namen.iter().any(|(n, _)| n.is_empty()), "der Ordner selbst ist heraus");
+        assert_eq!(namen.len(), 3, "der angefragte Ordner selbst gehoert nicht dazu: {namen:?}");
         let notiz = entries.iter().find(|e| e.name == "Notiz.md").unwrap();
         assert!(notiz.modified.is_some(), "getlastmodified gelesen");
+    }
+
+    #[test]
+    fn ein_unterordner_taucht_nicht_als_sein_eigenes_kind_auf() {
+        // Der Fehler, der die Anbindung am Telefon zerlegt hat: eine Antwort mit
+        // `Depth: 1` traegt den angefragten Ordner selbst als ersten Eintrag —
+        // auf *jeder* Ebene, nicht nur an der Wurzel. Wer ihn fuer ein Kind
+        // haelt, fragt als Naechstes `Merker/Merker/` an und bekommt 404.
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response><D:href>/dav/Vault/Merker/</D:href>
+    <D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat>
+  </D:response>
+  <D:response><D:href>/dav/Vault/Merker/Umzug.md</D:href>
+    <D:propstat><D:prop><D:resourcetype/></D:prop></D:propstat>
+  </D:response>
+</D:multistatus>"#;
+        let entries = parse_propfind(xml, "http://server/dav/Vault/Merker/");
+        let namen: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(namen, vec!["Umzug.md"], "nur das Kind, nicht der Ordner selbst");
+    }
+
+    #[test]
+    fn selbsteintrag_auch_ohne_abschliessenden_schraegstrich_erkannt() {
+        // Manche Server schreiben den eigenen href ohne Schraegstrich zurueck.
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response><D:href>/dav/Vault/Projekte</D:href>
+    <D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat>
+  </D:response>
+  <D:response><D:href>/dav/Vault/Projekte/Haus.md</D:href>
+    <D:propstat><D:prop><D:resourcetype/></D:prop></D:propstat>
+  </D:response>
+</D:multistatus>"#;
+        let namen: Vec<String> =
+            parse_propfind(xml, "http://server/dav/Vault/Projekte/").into_iter().map(|e| e.name).collect();
+        assert_eq!(namen, vec!["Haus.md"]);
+    }
+
+    #[test]
+    fn absolute_hrefs_mit_host_werden_genauso_behandelt() {
+        let xml = r#"<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response><D:href>http://server/dav/Vault/</D:href>
+    <D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat>
+  </D:response>
+  <D:response><D:href>http://server/dav/Vault/Notiz.md</D:href>
+    <D:propstat><D:prop><D:resourcetype/></D:prop></D:propstat>
+  </D:response>
+</D:multistatus>"#;
+        let namen: Vec<String> =
+            parse_propfind(xml, "http://server/dav/Vault/").into_iter().map(|e| e.name).collect();
+        assert_eq!(namen, vec!["Notiz.md"]);
     }
 
     #[test]

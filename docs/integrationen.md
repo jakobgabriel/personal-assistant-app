@@ -39,6 +39,17 @@ Tory macht ein `PROPFIND` mit `Depth: 1` je Ordner und ein `GET` je
 Markdown-Datei. `Depth: infinity` waere ein Aufruf statt vieler, aber Nextcloud
 und andere verbieten es.
 
+### Wenn es nicht geht
+
+```bash
+cargo run -p tory-core --example webdav_probe -- \
+    https://cloud.example.de/remote.php/dav/files/jakob/Obsidian/Privat jakob PASSWORT
+```
+
+Derselbe Code wie in der App, nur auf der Konsole und mit der vollstaendigen
+Fehlermeldung statt eines Banners. Zeigt, welche Ordner gefunden wurden und
+welche Aufgaben daraus werden.
+
 ### Was gelesen wird
 
 * **Offene Checkboxen** — `- [ ] …`, `* [ ] …`, `1. [ ] …`. Abgehaktes nie.

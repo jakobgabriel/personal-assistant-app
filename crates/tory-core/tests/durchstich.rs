@@ -157,8 +157,9 @@ fn antwort(pfad: &str, query: &str) -> (&'static str, String) {
         "/dav/Mindwtr/" => ("text/html", "<html><body>Index of /dav</body></html>".to_string()),
         // Der Vault. Auf den Schraegstrich wird bestanden — so verhaelt sich
         // mod_dav, und genau daran scheiterte die Anbindung auf dem Telefon.
-        "/dav/Vault/" => ("application/xml", vault_propfind()),
-        "/dav/Vault/Notiz.md" => ("text/markdown", VAULT_NOTIZ.to_string()),
+        "/dav/Vault/" => ("application/xml", vault_wurzel()),
+        "/dav/Vault/Projekte/" => ("application/xml", vault_unterordner()),
+        "/dav/Vault/Projekte/Haus.md" => ("text/markdown", VAULT_NOTIZ.to_string()),
         _ => ("application/json", "{}".to_string()),
     }
 }
@@ -427,22 +428,38 @@ async fn ein_ordner_statt_der_datei_wird_erklaert() {
 }
 
 
-/// Eine PROPFIND-Antwort mit einer Notiz darin.
-fn vault_propfind() -> String {
+/// Die Vault-Wurzel: der Ordner selbst plus ein Unterordner.
+fn vault_wurzel() -> String {
     r#"<?xml version="1.0"?>
-<d:multistatus xmlns:d="DAV:">
-  <d:response>
-    <d:href>/dav/Vault/</d:href>
-    <d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop>
-    <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
-  </d:response>
-  <d:response>
-    <d:href>/dav/Vault/Notiz.md</d:href>
-    <d:propstat><d:prop><d:resourcetype/>
-    <d:getlastmodified>Fri, 11 Sep 2026 06:00:00 GMT</d:getlastmodified></d:prop>
-    <d:status>HTTP/1.1 200 OK</d:status></d:propstat>
-  </d:response>
-</d:multistatus>"#
+<ns0:multistatus xmlns:ns0="DAV:">
+  <ns0:response><ns0:href>/dav/Vault/</ns0:href>
+    <ns0:propstat><ns0:prop><ns0:resourcetype><ns0:collection/></ns0:resourcetype></ns0:prop>
+    <ns0:status>HTTP/1.1 200 OK</ns0:status></ns0:propstat>
+  </ns0:response>
+  <ns0:response><ns0:href>/dav/Vault/Projekte/</ns0:href>
+    <ns0:propstat><ns0:prop><ns0:resourcetype><ns0:collection/></ns0:resourcetype></ns0:prop>
+    <ns0:status>HTTP/1.1 200 OK</ns0:status></ns0:propstat>
+  </ns0:response>
+</ns0:multistatus>"#
+        .to_string()
+}
+
+/// Der Unterordner. Er traegt sich selbst als ersten Eintrag — genau die Form,
+/// an der die Anbindung zerbrach: wer ihn fuer ein Kind haelt, fragt als
+/// Naechstes `Projekte/Projekte/` an.
+fn vault_unterordner() -> String {
+    r#"<?xml version="1.0"?>
+<ns0:multistatus xmlns:ns0="DAV:">
+  <ns0:response><ns0:href>/dav/Vault/Projekte/</ns0:href>
+    <ns0:propstat><ns0:prop><ns0:resourcetype><ns0:collection/></ns0:resourcetype></ns0:prop>
+    <ns0:status>HTTP/1.1 200 OK</ns0:status></ns0:propstat>
+  </ns0:response>
+  <ns0:response><ns0:href>/dav/Vault/Projekte/Haus.md</ns0:href>
+    <ns0:propstat><ns0:prop><ns0:resourcetype/>
+    <ns0:getlastmodified>Fri, 11 Sep 2026 06:00:00 GMT</ns0:getlastmodified></ns0:prop>
+    <ns0:status>HTTP/1.1 200 OK</ns0:status></ns0:propstat>
+  </ns0:response>
+</ns0:multistatus>"#
         .to_string()
 }
 
@@ -483,12 +500,18 @@ async fn obsidian_ueber_webdav_trifft_den_ordner_mit_schraegstrich() {
     assert!(bericht.failed.is_empty(), "{:?}", bericht.failed);
 
     let signale = engine.signals_of("obsidian:privat").await.unwrap();
-    assert_eq!(signale.len(), 1, "die Aufgabe aus der Notiz");
+    assert_eq!(signale.len(), 1, "die Aufgabe aus der Notiz im Unterordner");
     assert!(signale[0].title.contains("Dach"));
 
     // Angefragt wurde die Ordner-URL mit Schraegstrich, nicht ohne.
-    assert!(server.fand("/dav/Vault/").is_some(), "Ordner nicht mit / angefragt");
+    assert!(server.fand("/dav/Vault/").is_some(), "Wurzel nicht mit / angefragt");
     assert!(server.fand("/dav/Vault").is_none(), "ohne / haette der Server 404 gesagt");
+    // Und der Unterordner wurde genau einmal betreten, nicht als sein eigenes Kind.
+    assert!(server.fand("/dav/Vault/Projekte/").is_some(), "Unterordner nicht gelesen");
+    assert!(
+        server.fand("/dav/Vault/Projekte/Projekte/").is_none(),
+        "der Ordner wurde fuer sein eigenes Kind gehalten"
+    );
 
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -1,45 +1,49 @@
 <?xml version="1.0"?>
-<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns" xmlns:oc="http://owncloud.org/ns">
-  <d:response>
-    <d:href>/remote.php/dav/files/jakob/Obsidian/Privat/</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:resourcetype><d:collection/></d:resourcetype>
-        <d:getlastmodified>Fri, 11 Sep 2026 06:00:00 GMT</d:getlastmodified>
-      </d:prop>
-      <d:status>HTTP/1.1 200 OK</d:status>
-    </d:propstat>
-  </d:response>
-  <d:response>
-    <d:href>/remote.php/dav/files/jakob/Obsidian/Privat/Projekte/</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:resourcetype><d:collection/></d:resourcetype>
-        <d:getlastmodified>Fri, 11 Sep 2026 05:30:00 GMT</d:getlastmodified>
-      </d:prop>
-      <d:status>HTTP/1.1 200 OK</d:status>
-    </d:propstat>
-  </d:response>
-  <d:response>
-    <d:href>/remote.php/dav/files/jakob/Obsidian/Privat/Notiz.md</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:resourcetype/>
-        <d:getcontentlength>512</d:getcontentlength>
-        <d:getlastmodified>Thu, 10 Sep 2026 19:12:00 GMT</d:getlastmodified>
-      </d:prop>
-      <d:status>HTTP/1.1 200 OK</d:status>
-    </d:propstat>
-  </d:response>
-  <d:response>
-    <d:href>/remote.php/dav/files/jakob/Obsidian/Privat/Tagebuch%202026.md</d:href>
-    <d:propstat>
-      <d:prop>
-        <d:resourcetype/>
-        <d:getcontentlength>2048</d:getcontentlength>
-        <d:getlastmodified>Fri, 11 Sep 2026 04:00:00 GMT</d:getlastmodified>
-      </d:prop>
-      <d:status>HTTP/1.1 200 OK</d:status>
-    </d:propstat>
-  </d:response>
-</d:multistatus>
+<!-- Antwort auf PROPFIND .../Obsidian/Privat/ mit Depth: 1.
+     Der erste Eintrag ist der angefragte Ordner selbst — jede Ebene liefert
+     ihn mit, nicht nur die Wurzel. Praefix bewusst `ns0` statt `d`, weil
+     wsgidav und andere Server es so schreiben. -->
+<ns0:multistatus xmlns:ns0="DAV:">
+  <ns0:response>
+    <ns0:href>/remote.php/dav/files/jakob/Obsidian/Privat/</ns0:href>
+    <ns0:propstat>
+      <ns0:prop>
+        <ns0:resourcetype><ns0:collection/></ns0:resourcetype>
+        <ns0:getlastmodified>Fri, 11 Sep 2026 06:00:00 GMT</ns0:getlastmodified>
+      </ns0:prop>
+      <ns0:status>HTTP/1.1 200 OK</ns0:status>
+    </ns0:propstat>
+  </ns0:response>
+  <ns0:response>
+    <ns0:href>/remote.php/dav/files/jakob/Obsidian/Privat/Projekte/</ns0:href>
+    <ns0:propstat>
+      <ns0:prop>
+        <ns0:resourcetype><ns0:collection/></ns0:resourcetype>
+        <ns0:getlastmodified>Fri, 11 Sep 2026 05:30:00 GMT</ns0:getlastmodified>
+      </ns0:prop>
+      <ns0:status>HTTP/1.1 200 OK</ns0:status>
+    </ns0:propstat>
+  </ns0:response>
+  <ns0:response>
+    <ns0:href>/remote.php/dav/files/jakob/Obsidian/Privat/Notiz.md</ns0:href>
+    <ns0:propstat>
+      <ns0:prop>
+        <ns0:resourcetype/>
+        <ns0:getcontentlength>512</ns0:getcontentlength>
+        <ns0:getlastmodified>Thu, 10 Sep 2026 19:12:00 GMT</ns0:getlastmodified>
+      </ns0:prop>
+      <ns0:status>HTTP/1.1 200 OK</ns0:status>
+    </ns0:propstat>
+  </ns0:response>
+  <ns0:response>
+    <ns0:href>/remote.php/dav/files/jakob/Obsidian/Privat/Tagebuch%202026.md</ns0:href>
+    <ns0:propstat>
+      <ns0:prop>
+        <ns0:resourcetype/>
+        <ns0:getcontentlength>2048</ns0:getcontentlength>
+        <ns0:getlastmodified>Fri, 11 Sep 2026 04:00:00 GMT</ns0:getlastmodified>
+      </ns0:prop>
+      <ns0:status>HTTP/1.1 200 OK</ns0:status>
+    </ns0:propstat>
+  </ns0:response>
+</ns0:multistatus>
